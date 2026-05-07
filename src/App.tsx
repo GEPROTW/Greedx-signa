@@ -1001,7 +1001,14 @@ export default function App() {
                         };
                       }
                     });
-                    setTempSettings({ title: settings.title || '', logoUrl: settings.logoUrl || '', accounts: initialAccounts, links: settings.links || {} });
+                    setTempSettings({ 
+                      title: settings.title || '', 
+                      logoUrl: settings.logoUrl || '', 
+                      accounts: initialAccounts, 
+                      links: settings.links || {},
+                      description: settings.description || '',
+                      ownedBy: settings.ownedBy || ''
+                    });
                     setShowSettingsModal(true);
                   } else {
                     setShowLoginModal(true);
