@@ -35,9 +35,11 @@ service cloud.firestore {
 
     // Validation Blueprint for AppSettings
     function isValidAppSettings(data) {
-      return data.keys().hasAny(['title', 'logoUrl', 'accounts', 'links'])
+      return data.keys().hasAny(['title', 'logoUrl', 'accounts', 'links', 'ownedBy', 'description'])
         && (data.title == null || (data.title is string && data.title.size() <= 64))
         && (data.logoUrl == null || (data.logoUrl is string && data.logoUrl.size() <= 2048))
+        && (data.ownedBy == null || (data.ownedBy is string && data.ownedBy.size() <= 128))
+        && (data.description == null || (data.description is string && data.description.size() <= 512))
         && (data.accounts == null || data.accounts is map)
         && (data.links == null || data.links is map);
     }
@@ -52,7 +54,7 @@ service cloud.firestore {
       allow update: if isSignedIn()
                     && isValidId(settingId)
                     && isValidAppSettings(incoming())
-                    && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'logoUrl', 'accounts', 'links']);
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'logoUrl', 'accounts', 'links', 'ownedBy', 'description']);
       allow delete: if false; // do not allow delete
     }
 
