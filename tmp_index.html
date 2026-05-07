@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ethan Trading — Performance</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --ink:     #0a0c0f;
+  --ink2:    #111318;
+  --ink3:    #171b22;
+  --ink4:    #1e2330;
+  --wire:    #232b3a;
+  --wire2:   #2d3848;
+  --dim:     #3d4f66;
+  --muted:   #566a84;
+  --body:    #8fa3bc;
+  --text:    #c8d8ea;
+  --bright:  #e8f2ff;
+  --gold:    #f0b429;
+  --gold2:   #ffd166;
+  --cyan:    #00c8e0;
+  --cyan2:   #40e0f5;
+  --green:   #0fdb8a;
+  --green2:  #4dfdb2;
+  --red:     #ff4757;
+  --red2:    #ff8090;
+  --purple:  #a78bfa;
+  --mono:    'DM Mono', monospace;
+  --sans:    'DM Sans', sans-serif;
+  --display: 'Bebas Neue', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Noise texture overlay ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  opacity: .025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+}
+
+/* ── Radial glow bg ── */
+body::after {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 50% at 15% 10%, rgba(0,200,224,.06) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 85% 90%, rgba(167,139,250,.05) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 50% 50%, rgba(15,219,138,.03) 0%, transparent 70%);
+}
+
+.page { position: relative; z-index: 1; max-width: 1440px; margin: 0 auto; padding: 0 32px 80px; }
+
+/* ══════════════════════════════
+   HEADER
+══════════════════════════════ */
+header {
+  padding: 32px 0 0;
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 24px;
+  border-bottom: 1px solid var(--wire);
+  padding-bottom: 28px;
+}
+
+.brand-area { display: flex; flex-direction: column; gap: 6px; }
+
+.brand-lockup { display: flex; align-items: center; gap: 16px; }
+
+.brand-mark {
+  position: relative;
+  width: 48px; height: 48px;
+  border: 1.5px solid var(--cyan);
+  display: grid; place-items: center;
+}
+.brand-mark::before {
+  content: '';
+  position: absolute; inset: 4px;
+  background: linear-gradient(135deg, rgba(0,200,224,.15), rgba(0,200,224,.03));
+}
+.brand-mark-letter {
+  font-family: var(--display);
+  font-size: 26px; color: var(--cyan); line-height: 1; position: relative;
+}
+
+.brand-name {
+  font-family: var(--display);
+  font-size: 32px; letter-spacing: .06em; color: var(--bright); line-height: 1;
+}
+.brand-tagline {
+  font-family: var(--mono);
+  font-size: 10px; letter-spacing: .2em; color: var(--dim);
+  text-transform: uppercase; margin-top: 4px; padding-left: 2px;
+}
+
+.header-right { text-align: right; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.live-badge {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10px; letter-spacing: .1em; color: var(--muted);
+  font-family: var(--mono);
+}
+.live-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  animation: breathe 2.4s ease-in-out infinite;
+}
+@keyframes breathe { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.75)} }
+
+/* ══════════════════════════════
+   KPI STRIP
+══════════════════════════════ */
+.kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1px;
+  background: var(--wire);
+  margin-top: 28px;
+  border: 1px solid var(--wire);
+}
+.kpi {
+  background: var(--ink2);
+  padding: 20px 22px;
+  position: relative; overflow: hidden;
+  transition: background .15s;
+}
+.kpi:hover { background: var(--ink3); }
+.kpi::before {
+  content: attr(data-accent);
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+}
+.kpi[data-accent="cyan"]::before   { background: var(--cyan); }
+.kpi[data-accent="green"]::before  { background: var(--green); }
+.kpi[data-accent="red"]::before    { background: var(--red); }
+.kpi[data-accent="gold"]::before   { background: var(--gold); }
+.kpi[data-accent="purple"]::before { background: var(--purple); }
+.kpi[data-accent="blue"]::before   { background: #5b8cff; }
+
+.kpi-label {
+  font-family: var(--mono);
+  font-size: 9px; letter-spacing: .16em; color: var(--muted);
+  text-transform: uppercase; margin-bottom: 10px;
+}
+.kpi-val {
+  font-family: var(--display);
+  font-size: 30px; line-height: 1; color: var(--bright);
+  letter-spacing: .02em;
+}
+.kpi-val.pos { color: var(--green); }
+.kpi-val.neg { color: var(--red); }
+.kpi-sub {
+  margin-top: 6px;
+  font-family: var(--mono); font-size: 10px; color: var(--dim);
+}
+.kpi-bg-num {
+  position: absolute; right: 14px; bottom: 8px;
+  font-family: var(--display); font-size: 52px;
+  color: rgba(255,255,255,.025); line-height: 1; pointer-events: none;
+  letter-spacing: .02em;
+}
+
+/* ══════════════════════════════
+   CHARTS GRID
+══════════════════════════════ */
+.charts-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+.charts-grid-bot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.chart-card {
+  background: var(--ink2);
+  border: 1px solid var(--wire);
+  padding: 22px 24px;
+  position: relative; overflow: hidden;
+}
+.chart-card::after {
+  content: '';
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(0,200,224,.04), transparent);
+}
+
+.chart-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; }
+.chart-title {
+  font-family: var(--mono); font-size: 10px; letter-spacing: .14em;
+  color: var(--muted); text-transform: uppercase;
+}
+.chart-stat { text-align: right; }
+.chart-stat-val { font-family: var(--display); font-size: 22px; color: var(--bright); letter-spacing: .02em; }
+.chart-stat-val.pos { color: var(--green); }
+.chart-stat-val.neg { color: var(--red); }
+.chart-stat-sub { font-family: var(--mono); font-size: 10px; color: var(--dim); margin-top: 2px; }
+
+.chart-wrap { position: relative; }
+canvas { display: block; }
+
+/* ══════════════════════════════
+   TABS
+══════════════════════════════ */
+.section-divider {
+  display: flex; align-items: center; gap: 16px;
+  margin-top: 32px; margin-bottom: 0;
+}
+.section-title {
+  font-family: var(--display); font-size: 22px; letter-spacing: .06em;
+  color: var(--bright); white-space: nowrap;
+}
+.divider-line { flex: 1; height: 1px; background: var(--wire); }
+
+.tab-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 16px; margin-bottom: 0;
+  border-bottom: 1px solid var(--wire);
+  padding-bottom: 0;
+}
+.tabs { display: flex; gap: 2px; }
+.tab {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
+  padding: 9px 20px 10px;
+  background: transparent; border: none; border-bottom: 2px solid transparent;
+  color: var(--dim); cursor: pointer; transition: all .15s;
+  position: relative; top: 1px;
+}
+.tab:hover { color: var(--body); }
+.tab.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+
+.tab-actions { display: flex; gap: 8px; padding-bottom: 8px; }
+.btn-refresh {
+  font-family: var(--mono); font-size: 10px; letter-spacing: .1em;
+  padding: 6px 14px; background: transparent;
+  border: 1px solid var(--wire2); color: var(--dim);
+  cursor: pointer; transition: all .15s;
+}
+.btn-refresh:hover { border-color: var(--cyan); color: var(--cyan); }
+
+/* ══════════════════════════════
+   TABLE
+══════════════════════════════ */
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--wire);
+  border-top: none;
+  margin-bottom: 0;
+}
+
+table { width: 100%; border-collapse: collapse; }
+
+thead tr { background: var(--ink3); border-bottom: 1px solid var(--wire2); }
+thead th {
+  font-family: var(--mono); font-size: 9px; letter-spacing: .14em;
+  color: var(--muted); text-transform: uppercase;
+  padding: 11px 16px; text-align: right; white-space: nowrap; font-weight: 400;
+}
+thead th:first-child { text-align: left; }
+
+tbody tr { border-bottom: 1px solid rgba(35,43,58,.6); transition: background .1s; }
+tbody tr:hover { background: rgba(0,200,224,.025); }
+tbody tr:last-child { border-bottom: none; }
+
+td { padding: 10px 16px; text-align: right; white-space: nowrap; }
+td:first-child { text-align: left; }
+
+.td-period {
+  font-family: var(--display); font-size: 15px; color: var(--bright);
+  letter-spacing: .04em;
+}
+.td-num { font-family: var(--mono); font-size: 12px; color: var(--body); }
+.td-pos { font-family: var(--mono); font-size: 12px; color: var(--green); }
+.td-neg { font-family: var(--mono); font-size: 12px; color: var(--red); }
+.td-dim { font-family: var(--mono); font-size: 12px; color: var(--dim); }
+
+.wr-pill {
+  display: inline-block; padding: 2px 8px; font-family: var(--mono);
+  font-size: 10px; letter-spacing: .04em;
+}
+.wr-pill.good { background: rgba(15,219,138,.1); color: var(--green2); border: 1px solid rgba(15,219,138,.2); }
+.wr-pill.bad  { background: rgba(255,71,87,.1);  color: var(--red2);   border: 1px solid rgba(255,71,87,.2); }
+
+.bar-wrap { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.bar-bg { width: 50px; height: 3px; background: var(--wire); border-radius: 2px; overflow: hidden; flex-shrink: 0; }
+.bar-fill { height: 100%; border-radius: 2px; transition: width .5s ease; }
+.bar-pos { background: var(--green); }
+.bar-neg { background: var(--red); }
+
+/* row accent bar */
+tbody tr td:first-child { position: relative; padding-left: 20px; }
+tbody tr td:first-child::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+}
+tbody tr.row-pos td:first-child::before { background: rgba(15,219,138,.5); }
+tbody tr.row-neg td:first-child::before { background: rgba(255,71,87,.5); }
+
+tfoot tr {
+  background: var(--ink3);
+  border-top: 2px solid var(--cyan);
+}
+tfoot td { padding: 11px 16px; font-family: var(--mono); font-size: 12px; }
+tfoot td:first-child {
+  font-family: var(--display); font-size: 14px; letter-spacing: .08em;
+  color: var(--cyan);
+}
+
+/* ══════════════════════════════
+   LOADING / EMPTY
+══════════════════════════════ */
+.state-cell { padding: 60px 16px !important; text-align: center !important; }
+.spinner {
+  display: inline-block; width: 20px; height: 20px;
+  border: 1.5px solid var(--wire2); border-top-color: var(--cyan);
+  border-radius: 50%; animation: spin .6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.state-msg { color: var(--muted); font-family: var(--mono); font-size: 11px; letter-spacing: .1em; margin-top: 10px; }
+
+/* ══════════════════════════════
+   FOOTER
+══════════════════════════════ */
+footer {
+  margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--wire);
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+  font-family: var(--mono); font-size: 10px; color: var(--dim); letter-spacing: .08em;
+}
+footer a { color: var(--muted); text-decoration: none; transition: color .15s; }
+footer a:hover { color: var(--cyan); }
+
+/* ══════════════════════════════
+   RESPONSIVE
+══════════════════════════════ */
+@media (max-width: 900px) {
+  .page { padding: 0 16px 60px; }
+  .kpi-strip { grid-template-columns: repeat(3, 1fr); }
+  .charts-grid { grid-template-columns: 1fr; }
+  .charts-grid-bot { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+  .brand-name { font-size: 24px; }
+    }
+
+/* ── fade-in on load ── */
+.fade-in { opacity: 0; transform: translateY(12px); animation: fadeUp .5s ease forwards; }
+.fade-in:nth-child(1) { animation-delay: .05s }
+.fade-in:nth-child(2) { animation-delay: .10s }
+.fade-in:nth-child(3) { animation-delay: .15s }
+.fade-in:nth-child(4) { animation-delay: .20s }
+.fade-in:nth-child(5) { animation-delay: .25s }
+.fade-in:nth-child(6) { animation-delay: .30s }
+@keyframes fadeUp { to { opacity:1; transform:translateY(0); } }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ── HEADER ── -->
+<header>
+  <div class="brand-area">
+    <div class="brand-lockup">
+      <div class="brand-mark"><span class="brand-mark-letter">E</span></div>
+      <div>
+        <div class="brand-name">ETHAN TRADING-跟單策略【LittleHedgehog】</div>
+        <div class="brand-tagline">績效分析儀表板</div>
+      </div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="live-badge">
+      <span class="live-dot"></span>
+      <span id="h-time">載入中…</span>
+    </div>
+  </div>
+</header>
+
+<!-- ── KPI STRIP ── -->
+<div class="kpi-strip" id="kpi-strip">
+  <div class="kpi fade-in" data-accent="cyan">
+    <div class="kpi-label">總損益</div>
+    <div class="kpi-val" id="k-pnl">—</div>
+    <div class="kpi-sub" id="k-pnl-sub">—</div>
+    <div class="kpi-bg-num" id="k-pnl-bg">—</div>
+  </div>
+  <div class="kpi fade-in" data-accent="green">
+    <div class="kpi-label">勝率</div>
+    <div class="kpi-val" id="k-wr">—</div>
+    <div class="kpi-sub" id="k-wr-sub">—</div>
+    <div class="kpi-bg-num" id="k-wr-bg">—</div>
+  </div>
+  <div class="kpi fade-in" data-accent="gold">
+    <div class="kpi-label">獲利因子</div>
+    <div class="kpi-val" id="k-pf">—</div>
+    <div class="kpi-sub" id="k-pf-sub">—</div>
+    <div class="kpi-bg-num" id="k-pf-bg">—</div>
+  </div>
+  <div class="kpi fade-in" data-accent="blue">
+    <div class="kpi-label">總交易次數</div>
+    <div class="kpi-val" id="k-tr">—</div>
+    <div class="kpi-sub" id="k-tr-sub">—</div>
+    <div class="kpi-bg-num" id="k-tr-bg">—</div>
+  </div>
+  <div class="kpi fade-in" data-accent="red">
+    <div class="kpi-label">最大回撤</div>
+    <div class="kpi-val neg" id="k-dd">—</div>
+    <div class="kpi-sub" id="k-dd-sub">—</div>
+    <div class="kpi-bg-num" id="k-dd-bg">—</div>
+  </div>
+  <div class="kpi fade-in" data-accent="purple">
+    <div class="kpi-label">總手數</div>
+    <div class="kpi-val" id="k-lots">—</div>
+    <div class="kpi-sub" id="k-lots-sub">—</div>
+    <div class="kpi-bg-num" id="k-lots-bg">—</div>
+  </div>
+</div>
+
+<!-- ── CHARTS ROW 1 ── -->
+<div class="charts-grid" id="charts-top">
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">累積權益曲線</div>
+      <div class="chart-stat">
+        <div class="chart-stat-val" id="eq-total">—</div>
+        <div class="chart-stat-sub">累積盈虧</div>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="chart-equity" height="200"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">損益分佈</div>
+      <div class="chart-stat">
+        <div class="chart-stat-val" id="dist-wr">—</div>
+        <div class="chart-stat-sub">勝率</div>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="chart-donut" height="200"></canvas></div>
+  </div>
+</div>
+
+<!-- ── CHARTS ROW 2 ── -->
+<div class="charts-grid-bot">
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">每日損益</div>
+      <div class="chart-stat">
+        <div class="chart-stat-val" id="daily-best">—</div>
+        <div class="chart-stat-sub">最佳單日</div>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="chart-daily" height="160"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">月度損益</div>
+      <div class="chart-stat">
+        <div class="chart-stat-val" id="monthly-best">—</div>
+        <div class="chart-stat-sub">最佳月份</div>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="chart-monthly" height="160"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">每日交易次數</div>
+      <div class="chart-stat">
+        <div class="chart-stat-val" id="avg-trades">—</div>
+        <div class="chart-stat-sub"> 日均交易次數</div>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="chart-trades" height="160"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">盈虧對比</div>
+      <div class="chart-stat">
+        <div class="chart-stat-val" id="pf-val">—</div>
+        <div class="chart-stat-sub">獲利因子</div>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="chart-winloss" height="160"></canvas></div>
+  </div>
+</div>
+
+<!-- ── TABLE SECTION ── -->
+<div class="section-divider" style="margin-top:36px;">
+  <div class="section-title">交易歷史</div>
+  <div class="divider-line"></div>
+</div>
+
+<div class="tab-row">
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-tab="DAY">日</button>
+    <button class="tab" data-tab="WEEK">週</button>
+    <button class="tab" data-tab="MONTH">月</button>
+    <button class="tab" data-tab="QUARTER">季</button>
+    <button class="tab" data-tab="YEAR">年</button>
+  </div>
+  <div class="tab-actions">
+    <button class="btn-refresh" onclick="loadData()">↻ 重新整理</button>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table id="main-table">
+    <thead>
+      <tr>
+        <th style="text-align:left">週期</th>
+        <th>交易次數</th>
+        <th>手數</th>
+        <th>損益</th>
+        <th>勝率</th>
+        <th>盈/虧</th>
+        <th> 獲利因子</th>
+        <th>最大回撤</th>
+        <th> 最大浮盈</th>
+        <th>餘額</th>
+      </tr>
+    </thead>
+    <tbody id="table-body">
+      <tr><td colspan="10" class="state-cell">
+        <div class="spinner"></div>
+        <div class="state-msg">資料載入中…</div>
+      </td></tr>
+    </tbody>
+    <tfoot id="table-foot" style="display:none">
+      <tr>
+        <td>▶ 合計</td>
+        <td id="f-tr" class="td-num"></td>
+        <td id="f-lots" class="td-dim"></td>
+        <td id="f-pnl"></td>
+        <td id="f-wr"></td>
+        <td id="f-wl" class="td-num"></td>
+        <td id="f-pf"></td>
+        <td id="f-dd" class="td-neg"></td>
+        <td id="f-fp" class="td-pos"></td>
+        <td id="f-bal" class="td-num"></td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+<footer>
+  <span>ETHAN TRADING STATS &nbsp;·&nbsp; 由 MT4/MT5 + GitHub Pages 驅動</span>
+  <span>每 5 分鐘自動更新 &nbsp;|&nbsp; <a href="https://www.puprime.com/forex-trading-account/?sub1=spid_MTEyMDk4NQ%3D%3D&affid=27130274&platform=copytrading&autoCertification=false" id="repo-link" target="_blank">跟單連結</a></span>
+</footer>
+
+</div><!-- /page -->
+
+<script>
+// ════════════════════════════════════════
+//  CONFIG — 改這裡
+// ════════════════════════════════════════
+const DATA_URL = 'trading_stats.json';
+const REPO_URL = 'https://www.puprime.com/forex-trading-account/?sub1=spid_MTEyMDk4NQ%3D%3D&affid=27130274&platform=copytrading&autoCertification=fals';
+
+// ════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════
+let data    = null;
+let curTab  = 'DAY';
+let charts  = {};
+
+document.getElementById('repo-link').href = REPO_URL;
+
+// ════════════════════════════════════════
+//  CHART.JS GLOBAL DEFAULTS
+// ════════════════════════════════════════
+Chart.defaults.color          = '#566a84';
+Chart.defaults.font.family    = "'DM Mono', monospace";
+Chart.defaults.font.size      = 10;
+Chart.defaults.borderColor    = '#232b3a';
+
+const GRID_COLOR  = 'rgba(35,43,58,.5)';
+const TICK_COLOR  = '#3d4f66';
+const GREEN_HEX   = '#0fdb8a';
+const RED_HEX     = '#ff4757';
+const CYAN_HEX    = '#00c8e0';
+const GOLD_HEX    = '#f0b429';
+
+// ════════════════════════════════════════
+//  UTILS
+// ════════════════════════════════════════
+const fmt  = (v, d=2) => Number(v).toFixed(d);
+const fmtN = v => Number(v).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+const sign = v => v >= 0 ? '+' : '';
+const esc  = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+function pnlClass(v) { return v >= 0 ? 'td-pos' : 'td-neg'; }
+function pnlStr(v)   { return (v >= 0 ? '+' : '') + fmtN(v); }
+
+// ════════════════════════════════════════
+//  LOAD DATA
+// ════════════════════════════════════════
+async function loadData() {
+  try {
+    const res = await fetch(DATA_URL + '?t=' + Date.now());
+    if (!res.ok) throw new Error(res.status);
+    data = await res.json();
+
+    // Header
+    const ts = data.updated_at
+      ? new Date(data.updated_at).toLocaleString('zh-TW', {timeZone:'Asia/Taipei'})
+      : '—';
+    document.getElementById('h-time').textContent = '更新時間：' + ts;
+
+    renderTab(curTab);
+    buildCharts();
+  } catch(e) {
+    document.getElementById('table-body').innerHTML =
+      `<tr><td colspan="10" class="state-cell">
+        <div class="state-msg">⚠ 無法載入 trading_stats.json<br>請確認檔案已上傳到 repo</div>
+       </td></tr>`;
+  }
+}
+
+// ════════════════════════════════════════
+//  BUILD CHARTS
+// ════════════════════════════════════════
+function buildCharts() {
+  if (!data) return;
+
+  const allDays     = (data.stats?.DAY     || []).slice().reverse();
+  const allMonths   = (data.stats?.MONTH   || []).slice().reverse();
+  const allRows     = getTabRows('DAY');
+
+  // ── 1. Equity Curve ──────────────────
+  destroyChart('chart-equity');
+  const eqLabels = allDays.map(r => r.label);
+  const eqRaw    = allDays.map(r => r.profit || 0);
+  const eqCum    = [];
+  let cum = 0;
+  eqRaw.forEach(v => { cum += v; eqCum.push(+cum.toFixed(2)); });
+
+  const eqTotal = eqCum[eqCum.length - 1] || 0;
+  const eqEl = document.getElementById('eq-total');
+  eqEl.textContent = pnlStr(eqTotal);
+  eqEl.className   = 'chart-stat-val ' + (eqTotal >= 0 ? 'pos' : 'neg');
+
+  const eqGrad = getCtx('chart-equity').createLinearGradient(0,0,0,200);
+  eqGrad.addColorStop(0,   eqTotal >= 0 ? 'rgba(15,219,138,.35)' : 'rgba(255,71,87,.35)');
+  eqGrad.addColorStop(.7,  eqTotal >= 0 ? 'rgba(15,219,138,.04)' : 'rgba(255,71,87,.04)');
+  eqGrad.addColorStop(1,   'transparent');
+
+  const lineColor = eqTotal >= 0 ? GREEN_HEX : RED_HEX;
+
+  charts['chart-equity'] = new Chart(getCtx('chart-equity'), {
+    type: 'line',
+    data: {
+      labels: eqLabels,
+      datasets: [{
+        data: eqCum,
+        borderColor: lineColor,
+        borderWidth: 2,
+        fill: true,
+        backgroundColor: eqGrad,
+        tension: .4,
+        pointRadius: eqLabels.length > 60 ? 0 : 3,
+        pointBackgroundColor: lineColor,
+        pointHoverRadius: 5,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#111318', borderColor: '#2d3848', borderWidth: 1,
+          titleColor: '#8fa3bc', bodyColor: '#c8d8ea',
+          callbacks: {
+            label: ctx => ' ' + pnlStr(ctx.raw),
+            title: items => items[0].label,
+          }
+        }
+      },
+      scales: {
+        x: { grid: { color: GRID_COLOR }, ticks: { color: TICK_COLOR, maxTicksLimit: 8 } },
+        y: { grid: { color: GRID_COLOR }, ticks: { color: TICK_COLOR, callback: v => (v>=0?'+':'')+fmtN(v) } }
+      }
+    }
+  });
+
+  // ── 2. Donut ─────────────────────────
+  destroyChart('chart-donut');
+  const totRows = getTabRows(curTab);
+  let tw = 0, tl = 0;
+  totRows.forEach(r => { tw += r.win_trades||0; tl += r.loss_trades||0; });
+  const wr = tw + tl > 0 ? (tw/(tw+tl)*100) : 0;
+
+  document.getElementById('dist-wr').textContent = fmt(wr, 1) + '%';
+  document.getElementById('dist-wr').className   = 'chart-stat-val ' + (wr >= 50 ? 'pos' : 'neg');
+
+  charts['chart-donut'] = new Chart(getCtx('chart-donut'), {
+    type: 'doughnut',
+    data: {
+      labels: ['獲利', '虧損'],
+      datasets: [{
+        data: [tw, tl],
+        backgroundColor: ['rgba(15,219,138,.8)', 'rgba(255,71,87,.8)'],
+        borderColor: ['rgba(15,219,138,1)', 'rgba(255,71,87,1)'],
+        borderWidth: 1.5,
+        hoverOffset: 6,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '72%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: '#566a84', padding: 16, boxWidth: 10 }
+        },
+        tooltip: {
+          backgroundColor: '#111318', borderColor: '#2d3848', borderWidth: 1,
+          bodyColor: '#c8d8ea',
+        }
+      }
+    }
+  });
+
+  // ── 3. Daily PnL Bar ─────────────────
+  destroyChart('chart-daily');
+  const dPnlRows   = allDays.slice(-30);
+  const dPnlLabels = dPnlRows.map(r => r.label);
+  const dPnlVals   = dPnlRows.map(r => r.profit || 0);
+  const dPnlColors = dPnlVals.map(v => v >= 0 ? 'rgba(15,219,138,.75)' : 'rgba(255,71,87,.75)');
+  const dPnlBorders= dPnlVals.map(v => v >= 0 ? GREEN_HEX : RED_HEX);
+
+  const bestD = dPnlVals.length ? dPnlVals.reduce((a, b) => Math.max(a, b), -Infinity) : 0;
+  const bestDEl = document.getElementById('daily-best');
+  bestDEl.textContent = bestD !== -Infinity ? pnlStr(bestD) : '—';
+  bestDEl.className   = 'chart-stat-val ' + (bestD >= 0 ? 'pos' : 'neg');
+
+  charts['chart-daily'] = new Chart(getCtx('chart-daily'), {
+    type: 'bar',
+    data: {
+      labels: dPnlLabels,
+      datasets: [{
+        data: dPnlVals,
+        backgroundColor: dPnlColors,
+        borderColor: dPnlBorders,
+        borderWidth: 1,
+        borderRadius: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#111318', borderColor: '#2d3848', borderWidth: 1,
+          bodyColor: '#c8d8ea',
+          callbacks: { label: ctx => ' ' + pnlStr(ctx.raw) }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: TICK_COLOR, maxTicksLimit: 10 } },
+        y: {
+          grid: { color: GRID_COLOR },
+          ticks: { color: TICK_COLOR, callback: v => (v >= 0 ? '+' : '') + fmt(v, 0) }
+        }
+      }
+    }
+  });
+
+  // ── 4. Monthly Bar ────────────────────
+  destroyChart('chart-monthly');
+  const mLabels = allMonths.map(r => r.label);
+  const mVals   = allMonths.map(r => r.profit || 0);
+  const mColors = mVals.map(v => v >= 0 ? 'rgba(15,219,138,.75)' : 'rgba(255,71,87,.75)');
+  const mBorders= mVals.map(v => v >= 0 ? GREEN_HEX : RED_HEX);
+
+  const bestM = mVals.length ? mVals.reduce((a,b) => Math.max(a,b), -Infinity) : 0;
+  const bestEl = document.getElementById('monthly-best');
+  bestEl.textContent = bestM !== -Infinity ? pnlStr(bestM) : '—';
+  bestEl.className   = 'chart-stat-val ' + (bestM >= 0 ? 'pos' : 'neg');
+
+  charts['chart-monthly'] = new Chart(getCtx('chart-monthly'), {
+    type: 'bar',
+    data: {
+      labels: mLabels,
+      datasets: [{
+        data: mVals,
+        backgroundColor: mColors,
+        borderColor: mBorders,
+        borderWidth: 1,
+        borderRadius: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#111318', borderColor: '#2d3848', borderWidth: 1,
+          bodyColor: '#c8d8ea',
+          callbacks: { label: ctx => ' ' + pnlStr(ctx.raw) }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: TICK_COLOR, maxTicksLimit: 8 } },
+        y: { grid: { color: GRID_COLOR }, ticks: { color: TICK_COLOR, callback: v => (v>=0?'+':'')+fmt(v,0) } }
+      }
+    }
+  });
+
+  // ── 5. Daily Trade Count ──────────────
+  destroyChart('chart-trades');
+  const tLabels = allDays.slice(-30).map(r => r.label);
+  const tVals   = allDays.slice(-30).map(r => r.trades || 0);
+  const avgT    = tVals.length ? (tVals.reduce((a,b)=>a+b,0) / tVals.length) : 0;
+
+  document.getElementById('avg-trades').textContent = avgT > 0 ? fmt(avgT, 1) : '—';
+
+  charts['chart-trades'] = new Chart(getCtx('chart-trades'), {
+    type: 'bar',
+    data: {
+      labels: tLabels,
+      datasets: [{
+        data: tVals,
+        backgroundColor: 'rgba(0,200,224,.5)',
+        borderColor: CYAN_HEX,
+        borderWidth: 1,
+        borderRadius: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#111318', borderColor: '#2d3848', borderWidth: 1,
+          bodyColor: '#c8d8ea',
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: TICK_COLOR, maxTicksLimit: 10 } },
+        y: { grid: { color: GRID_COLOR }, ticks: { color: TICK_COLOR, stepSize: 1 } }
+      }
+    }
+  });
+
+  // ── 6. Win vs Loss PnL Bars ───────────
+  destroyChart('chart-winloss');
+  const rows30   = allDays.slice(-20);
+  const wlLabels = rows30.map(r => r.label);
+  const wVals    = rows30.map(r => +(r.win_profit  || 0).toFixed(2));
+  const lVals    = rows30.map(r => +(r.loss_profit || 0).toFixed(2));
+
+  let totWin  = 0, totLoss = 0;
+  wVals.forEach(v  => totWin  += v);
+  lVals.forEach(v  => totLoss += v);
+  const pf = totLoss !== 0 ? Math.abs(totWin / totLoss) : (totWin > 0 ? 999 : 0);
+
+  const pfEl = document.getElementById('pf-val');
+  pfEl.textContent = fmt(pf, 2);
+  pfEl.className   = 'chart-stat-val ' + (pf >= 1 ? 'pos' : 'neg');
+  document.getElementById('pf-val').closest('.chart-card').querySelector('.chart-title').textContent = '盈虧損益對比';
+
+  charts['chart-winloss'] = new Chart(getCtx('chart-winloss'), {
+    type: 'bar',
+    data: {
+      labels: wlLabels,
+      datasets: [
+        {
+          label: '獲利',
+          data: wVals,
+          backgroundColor: 'rgba(15,219,138,.65)',
+          borderColor: GREEN_HEX, borderWidth: 1, borderRadius: 2,
+        },
+        {
+          label: '虧損',
+          data: lVals,
+          backgroundColor: 'rgba(255,71,87,.65)',
+          borderColor: RED_HEX, borderWidth: 1, borderRadius: 2,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: '#566a84', padding: 12, boxWidth: 10 }
+        },
+        tooltip: {
+          backgroundColor: '#111318', borderColor: '#2d3848', borderWidth: 1,
+          bodyColor: '#c8d8ea',
+          callbacks: { label: ctx => ' ' + ctx.dataset.label + '：' + pnlStr(ctx.raw) }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: TICK_COLOR, maxTicksLimit: 8 } },
+        y: { grid: { color: GRID_COLOR }, ticks: { color: TICK_COLOR, callback: v => (v>=0?'+':'')+fmt(v,0) } }
+      }
+    }
+  });
+}
+
+function getCtx(id) { return document.getElementById(id).getContext('2d'); }
+function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+// ════════════════════════════════════════
+//  RENDER TABLE
+// ════════════════════════════════════════
+function getTabRows(tab) { return (data?.stats || {})[tab] || []; }
+
+function renderTab(tab) {
+  curTab = tab;
+  document.querySelectorAll('.tab').forEach(el =>
+    el.classList.toggle('active', el.dataset.tab === tab));
+
+  const rows = getTabRows(tab);
+  const tbody = document.getElementById('table-body');
+  const tfoot = document.getElementById('table-foot');
+
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="10" class="state-cell"><div class="state-msg">此週期無資料</div></td></tr>`;
+    tfoot.style.display = 'none';
+    updateKPI([]);
+    return;
+  }
+
+  const maxAbs = rows.reduce((m, r) => Math.max(m, Math.abs(r.profit||0)), .01);
+
+  // ── 餘額倒推：rows[0] = 最新，往後越舊
+  // 已知：data.balance = 當下最新餘額（含所有歷史）
+  // rows 只涵蓋畫面顯示的週期（可能不是全部歷史），
+  // 所以用 rows[0] 結束時的餘額 = data.balance 往前倒推。
+  const balances = [];
+  let runBal = data.balance ?? 0;
+  for (let i = 0; i < rows.length; i++) {
+    balances[i] = runBal;                        // 該週期結束時的餘額
+    runBal = +(runBal - (rows[i].profit || 0)).toFixed(2); // 再往前一期
+  }
+
+  tbody.innerHTML = rows.map((r, i) => {
+    const pnl = r.profit || 0;
+    const wr  = r.trades ? (r.win_trades / r.trades * 100) : 0;
+    const pf  = r.loss_profit ? Math.abs((r.win_profit||0) / r.loss_profit) : (r.win_profit > 0 ? 999 : 0);
+    const dd  = r.max_drawdown || 0;
+    const fp  = r.max_float_profit || 0;
+    const bw  = Math.round(Math.abs(pnl) / maxAbs * 48);
+    const bal = balances[i];
+    return `<tr class="${pnl >= 0 ? 'row-pos' : 'row-neg'}">
+      <td class="td-period">${esc(r.label)}</td>
+      <td class="td-num">${r.trades || 0}</td>
+      <td class="td-dim">${fmt(r.total_lots||0)}</td>
+      <td>
+        <div class="bar-wrap">
+          <div class="bar-bg"><div class="bar-fill ${pnl>=0?'bar-pos':'bar-neg'}" style="width:${bw}px"></div></div>
+          <span class="${pnlClass(pnl)}">${pnlStr(pnl)}</span>
+        </div>
+      </td>
+      <td><span class="wr-pill ${wr>=50?'good':'bad'}">${fmt(wr,1)}%</span></td>
+      <td class="${wr>=50?'td-pos':'td-neg'}">${r.win_trades||0}勝 / ${r.loss_trades||0}敗</td>
+      <td class="${pf>=1?'td-pos':'td-neg'}">${fmt(pf,2)}</td>
+      <td class="${dd<0?'td-neg':'td-dim'}">${dd < 0 ? fmt(dd,2) : '—'}</td>
+      <td class="${fp>0?'td-pos':'td-dim'}">${fp > 0 ? '+'+fmt(fp,2) : '—'}</td>
+      <td class="td-num">${fmtN(bal)}</td>
+    </tr>`;
+  }).join('');
+
+  // tfoot totals
+  let tot = { trades:0, lots:0, profit:0, win:0, loss:0, win_pnl:0, loss_pnl:0, dd:0, fp:0, bal:0 };
+  rows.forEach((r, i) => {
+    tot.trades += r.trades||0; tot.lots += r.total_lots||0; tot.profit += r.profit||0;
+    tot.win += r.win_trades||0; tot.loss += r.loss_trades||0;
+    tot.win_pnl += r.win_profit||0; tot.loss_pnl += r.loss_profit||0;
+    if ((r.max_drawdown||0) < tot.dd) tot.dd = r.max_drawdown;
+    if ((r.max_float_profit||0) > tot.fp) tot.fp = r.max_float_profit;
+    if (i === 0) tot.bal = balances[0]; // 最新週期結束餘額 = 當前餘額
+  });
+  const twr = tot.trades ? tot.win/tot.trades*100 : 0;
+  const tpf = tot.loss_pnl ? Math.abs(tot.win_pnl/tot.loss_pnl) : (tot.win_pnl>0?999:0);
+
+  setEl('f-tr',   tot.trades,             'td-num');
+  setEl('f-lots', fmt(tot.lots),          'td-dim');
+  setEl('f-pnl',  pnlStr(tot.profit),     pnlClass(tot.profit));
+  setEl('f-wr',   fmt(twr,1)+'%',         twr>=50?'td-pos':'td-neg');
+  setEl('f-wl',   tot.win+'勝 / '+tot.loss+'敗', 'td-num');
+  setEl('f-pf',   fmt(tpf,2),             tpf>=1?'td-pos':'td-neg');
+  setEl('f-dd',   tot.dd < 0 ? fmt(tot.dd,2) : '—', 'td-neg');
+  setEl('f-fp',   tot.fp > 0 ? '+'+fmt(tot.fp,2) : '—', 'td-pos');
+  setEl('f-bal',  fmtN(tot.bal),          'td-num');
+  tfoot.style.display = '';
+
+  updateKPI(rows);
+
+  // re-draw donut on tab change
+  if (charts['chart-donut']) {
+    destroyChart('chart-donut');
+    let tw2 = 0, tl2 = 0;
+    rows.forEach(r => { tw2 += r.win_trades||0; tl2 += r.loss_trades||0; });
+    const wr2 = tw2+tl2>0 ? tw2/(tw2+tl2)*100 : 0;
+    document.getElementById('dist-wr').textContent = fmt(wr2,1)+'%';
+    document.getElementById('dist-wr').className   = 'chart-stat-val '+(wr2>=50?'pos':'neg');
+    charts['chart-donut'] = new Chart(getCtx('chart-donut'), {
+      type: 'doughnut',
+      data: { labels:['Win','Loss'], datasets:[{ data:[tw2,tl2], backgroundColor:['rgba(15,219,138,.8)','rgba(255,71,87,.8)'], borderColor:[GREEN_HEX,RED_HEX], borderWidth:1.5, hoverOffset:6 }] },
+      options: { responsive:true, maintainAspectRatio:false, cutout:'72%', plugins:{ legend:{ position:'bottom', labels:{ color:'#566a84', padding:16, boxWidth:10 } }, tooltip:{ backgroundColor:'#111318', borderColor:'#2d3848', borderWidth:1, bodyColor:'#c8d8ea' } } }
+    });
+  }
+}
+
+function setEl(id, val, cls) {
+  const el = document.getElementById(id);
+  el.textContent = val; el.className = cls || '';
+}
+
+// ════════════════════════════════════════
+//  UPDATE KPI STRIP
+// ════════════════════════════════════════
+function updateKPI(rows) {
+  let tot = { trades:0, lots:0, profit:0, win:0, loss:0, win_pnl:0, loss_pnl:0, dd:0 };
+  rows.forEach(r => {
+    tot.trades  += r.trades||0; tot.lots += r.total_lots||0; tot.profit += r.profit||0;
+    tot.win     += r.win_trades||0; tot.loss += r.loss_trades||0;
+    tot.win_pnl += r.win_profit||0; tot.loss_pnl += r.loss_profit||0;
+    if ((r.max_drawdown||0) < tot.dd) tot.dd = r.max_drawdown;
+  });
+  const wr = tot.trades ? tot.win/tot.trades*100 : 0;
+  const pf = tot.loss_pnl ? Math.abs(tot.win_pnl/tot.loss_pnl) : (tot.win_pnl>0?999:0);
+
+  const kpnl = document.getElementById('k-pnl');
+  kpnl.textContent = (tot.profit>=0?'+':'')+fmtN(tot.profit);
+  kpnl.className   = 'kpi-val '+(tot.profit>=0?'pos':'neg');
+  document.getElementById('k-pnl-sub').textContent = rows.length+' 個週期';
+  document.getElementById('k-pnl-bg').textContent  = rows.length;
+
+  const kwr = document.getElementById('k-wr');
+  kwr.textContent = fmt(wr,1)+'%';
+  kwr.className   = 'kpi-val '+(wr>=50?'pos':'neg');
+  document.getElementById('k-wr-sub').textContent = tot.win+'勝 / '+tot.loss+'敗';
+  document.getElementById('k-wr-bg').textContent  = fmt(wr,0)+'%';
+
+  const kpf = document.getElementById('k-pf');
+  kpf.textContent = fmt(pf,2);
+  kpf.className   = 'kpi-val '+(pf>=1?'pos':'neg');
+  document.getElementById('k-pf-sub').textContent = '獲利因子';
+  document.getElementById('k-pf-bg').textContent  = fmt(pf,1);
+
+  document.getElementById('k-tr').textContent     = tot.trades;
+  document.getElementById('k-tr-sub').textContent = '總交易次數';
+  document.getElementById('k-tr-bg').textContent  = tot.trades;
+
+  const kdd = document.getElementById('k-dd');
+  kdd.textContent = tot.dd < 0 ? fmt(tot.dd,2) : '0.00';
+  document.getElementById('k-dd-sub').textContent = '最大回撤';
+  document.getElementById('k-dd-bg').textContent  = tot.dd < 0 ? fmt(tot.dd,0) : '0';
+
+  document.getElementById('k-lots').textContent     = fmt(tot.lots,2);
+  document.getElementById('k-lots-sub').textContent = '已交易手數';
+  document.getElementById('k-lots-bg').textContent  = fmt(tot.lots,1);
+}
+
+// ════════════════════════════════════════
+//  EVENTS
+// ════════════════════════════════════════
+document.getElementById('tabs').addEventListener('click', e => {
+  if (!e.target.classList.contains('tab')) return;
+  renderTab(e.target.dataset.tab);
+});
+
+// ════════════════════════════════════════
+//  BOOT
+// ════════════════════════════════════════
+loadData();
+setInterval(loadData, 5 * 60 * 1000);
+</script>
+</body>
+</html>

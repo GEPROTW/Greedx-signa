@@ -1,0 +1,31 @@
+{
+  "entities": {
+    "Deal": {
+      "title": "Deal",
+      "description": "A single MT5 trade execution deal.",
+      "type": "object",
+      "properties": {
+        "ticket": { "type": "string" },
+        "type": { "type": "number" },
+        "volume": { "type": "number" },
+        "price": { "type": "number" },
+        "time": { "type": "number", "description": "Timestamp in milliseconds" },
+        "profit": { "type": "number" },
+        "commission": { "type": "number" },
+        "swap": { "type": "number" },
+        "symbol": { "type": "string" },
+        "magic": { "type": "number" },
+        "isPublic": { "type": "boolean" },
+        "updatedAt": { "type": "number" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["ticket", "type", "volume", "price", "time", "profit", "commission", "swap", "symbol", "magic", "isPublic", "updatedAt", "ownerId"]
+    }
+  },
+  "firestore": {
+    "/deals/{dealId}": {
+      "schema": { "$ref": "#/entities/Deal" },
+      "description": "Stores MT5 history deals."
+    }
+  }
+}
