@@ -39,7 +39,6 @@ interface AccountConfig {
 
 interface AppSettings {
   title?: string;
-  description?: string;
   logoUrl?: string;
   ownedBy?: string;
   accounts?: Record<string, AccountConfig>;
@@ -154,8 +153,7 @@ const translations = {
     toggleTheme: '切換主題',
     toggleLanguage: '切換語言',
     profitDetail: '損益',
-    ownedBy: '版權宣告 (Owned by)',
-    description: '網站預覽描述'
+    ownedBy: '版權宣告 (Owned by)'
   },
   en: {
     appTitle: 'Greedx signa',
@@ -256,8 +254,7 @@ const translations = {
     toggleTheme: 'Toggle Theme',
     toggleLanguage: 'Language',
     profitDetail: 'Profit',
-    ownedBy: 'Owned by Text',
-    description: 'Site Description'
+    ownedBy: 'Owned by Text'
   }
 };
 
@@ -343,15 +340,6 @@ export default function App() {
   useEffect(() => {
     if (settings.title) {
       document.title = settings.title;
-      const ogTitle = document.querySelector('meta[property="og:title"]');
-      if (ogTitle) ogTitle.setAttribute('content', settings.title);
-    }
-    if (settings.description) {
-      const metaDescription = document.querySelector('meta[name="description"]');
-      if (metaDescription) metaDescription.setAttribute('content', settings.description);
-      
-      const ogDescription = document.querySelector('meta[property="og:description"]');
-      if (ogDescription) ogDescription.setAttribute('content', settings.description);
     }
     if (settings.logoUrl) {
       const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
@@ -1001,14 +989,7 @@ export default function App() {
                         };
                       }
                     });
-                    setTempSettings({ 
-                      title: settings.title || '', 
-                      logoUrl: settings.logoUrl || '', 
-                      accounts: initialAccounts, 
-                      links: settings.links || {},
-                      description: settings.description || '',
-                      ownedBy: settings.ownedBy || ''
-                    });
+                    setTempSettings({ title: settings.title || '', logoUrl: settings.logoUrl || '', accounts: initialAccounts, links: settings.links || {} });
                     setShowSettingsModal(true);
                   } else {
                     setShowLoginModal(true);
@@ -1611,19 +1592,9 @@ export default function App() {
                   <label className="block font-mono text-[12px] tracking-[0.1em] text-muted mb-2">{t('label')}</label>
                   <input 
                     type="text" 
-                    value={tempSettings.title || ''}
+                    value={tempSettings.title}
                     onChange={(e) => setTempSettings({...tempSettings, title: e.target.value})}
                     placeholder="MT5 Performance Monitor"
-                    className="w-full bg-ink-3 border border-wire rounded-lg px-3 py-2 font-sans text-[14px] text-body focus:outline-none focus:ring-2 focus:ring-cyan-glow/30"
-                  />
-                </div>
-                <div>
-                  <label className="block font-mono text-[12px] tracking-[0.1em] text-muted mb-2">{t('description')}</label>
-                  <textarea 
-                    value={tempSettings.description || ''}
-                    onChange={(e) => setTempSettings({...tempSettings, description: e.target.value})}
-                    placeholder="MT5 Performance Monitoring System"
-                    rows={2}
                     className="w-full bg-ink-3 border border-wire rounded-lg px-3 py-2 font-sans text-[14px] text-body focus:outline-none focus:ring-2 focus:ring-cyan-glow/30"
                   />
                 </div>
