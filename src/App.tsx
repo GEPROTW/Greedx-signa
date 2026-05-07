@@ -40,6 +40,7 @@ interface AccountConfig {
 interface AppSettings {
   title?: string;
   logoUrl?: string;
+  ownedBy?: string;
   accounts?: Record<string, AccountConfig>;
   links?: {
     community?: string;
@@ -151,7 +152,8 @@ const translations = {
     hidden: '已隱藏',
     toggleTheme: '切換主題',
     toggleLanguage: '切換語言',
-    profitDetail: '損益'
+    profitDetail: '損益',
+    ownedBy: '版權宣告 (Owned by)'
   },
   en: {
     appTitle: 'Greedx signa',
@@ -251,7 +253,8 @@ const translations = {
     hidden: 'Hidden',
     toggleTheme: 'Toggle Theme',
     toggleLanguage: 'Language',
-    profitDetail: 'Profit'
+    profitDetail: 'Profit',
+    ownedBy: 'Owned by Text'
   }
 };
 
@@ -266,6 +269,16 @@ const parseImageUrl = (url: string | undefined): string => {
     return `https://lh3.googleusercontent.com/d/${driveIdMatch[1]}`;
   }
   return url;
+};
+
+const getSettingsDocId = () => {
+  const hostname = window.location.hostname;
+  const pathPart = window.location.pathname.split('/')[1];
+  let id = hostname;
+  if (pathPart && pathPart !== 'index.html' && pathPart !== 'standalone.html') {
+    id += '_' + pathPart;
+  }
+  return 'appSettings_' + id.replace(/[^a-zA-Z0-9_-]/g, '_');
 };
 
 export default function App() {
@@ -377,15 +390,16 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const docId = getSettingsDocId();
     const unsubSettings = onSnapshot(
-      doc(db, 'settings', 'appSettings'),
+      doc(db, 'settings', docId),
       (docSnap) => {
         if (docSnap.exists()) {
           setSettings(docSnap.data() as AppSettings);
         }
       },
       (err) => {
-        handleFirestoreError(err, OperationType.GET, 'settings/appSettings');
+        handleFirestoreError(err, OperationType.GET, `settings/${docId}`);
       }
     );
     return () => unsubSettings();
@@ -432,10 +446,11 @@ export default function App() {
 
   const handleSaveSettings = async () => {
     try {
-      await setDoc(doc(db, 'settings', 'appSettings'), tempSettings, { merge: true });
+      const docId = getSettingsDocId();
+      await setDoc(doc(db, 'settings', docId), tempSettings, { merge: true });
       setShowSettingsModal(false);
     } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, 'settings/appSettings');
+      handleFirestoreError(err, OperationType.WRITE, `settings/${getSettingsDocId()}`);
     }
   };
 
@@ -1503,7 +1518,7 @@ export default function App() {
         )}
 
         <footer className="mt-12 pt-5 border-t border-wire flex justify-between items-center flex-wrap gap-2 font-mono text-[12px] text-dim tracking-[0.08em] uppercase">
-          <span>Owned by AION CAPITAL</span>
+          <span>{settings.ownedBy || 'Owned by Greedx signa'}</span>
           <div className="flex items-center gap-6">
             {settings.links?.community ? <a href={settings.links.community} target="_blank" rel="noreferrer" className="hover:text-cyan-glow transition-colors border-b border-transparent hover:border-cyan-glow pb-0.5">{t('community')}</a> : <span>{t('community')}</span>}
             {settings.links?.broker ? <a href={settings.links.broker} target="_blank" rel="noreferrer" className="hover:text-cyan-glow transition-colors border-b border-transparent hover:border-cyan-glow pb-0.5">{t('broker')}</a> : <span>{t('broker')}</span>}
@@ -1591,6 +1606,16 @@ export default function App() {
                     onChange={(e) => setTempSettings({...tempSettings, logoUrl: e.target.value})}
                     placeholder="https://example.com/logo.png"
                     className="w-full bg-ink-3 border border-wire rounded-lg px-3 py-2 font-mono text-[14px] text-body focus:outline-none focus:ring-2 focus:ring-cyan-glow/30"
+                  />
+                </div>
+                <div>
+                  <label className="block font-mono text-[12px] tracking-[0.1em] text-muted mb-2">{t('ownedBy')}</label>
+                  <input 
+                    type="text" 
+                    value={tempSettings.ownedBy || ''}
+                    onChange={(e) => setTempSettings({...tempSettings, ownedBy: e.target.value})}
+                    placeholder="Owned by Greedx signa"
+                    className="w-full bg-ink-3 border border-wire rounded-lg px-3 py-2 font-sans text-[14px] text-body focus:outline-none focus:ring-2 focus:ring-cyan-glow/30"
                   />
                 </div>
                 <div>
