@@ -40,7 +40,6 @@ interface AccountConfig {
 interface AppSettings {
   title?: string;
   logoUrl?: string;
-  ownedBy?: string;
   accounts?: Record<string, AccountConfig>;
   links?: {
     community?: string;
@@ -152,8 +151,7 @@ const translations = {
     hidden: '已隱藏',
     toggleTheme: '切換主題',
     toggleLanguage: '切換語言',
-    profitDetail: '損益',
-    ownedBy: '版權宣告 (Owned by)'
+    profitDetail: '損益'
   },
   en: {
     appTitle: 'Greedx signa',
@@ -253,8 +251,7 @@ const translations = {
     hidden: 'Hidden',
     toggleTheme: 'Toggle Theme',
     toggleLanguage: 'Language',
-    profitDetail: 'Profit',
-    ownedBy: 'Owned by Text'
+    profitDetail: 'Profit'
   }
 };
 
@@ -1518,7 +1515,7 @@ export default function App() {
         )}
 
         <footer className="mt-12 pt-5 border-t border-wire flex justify-between items-center flex-wrap gap-2 font-mono text-[12px] text-dim tracking-[0.08em] uppercase">
-          <span>{settings.ownedBy || 'Owned by Greedx signa'}</span>
+          <span>Owned by Greedx signa</span>
           <div className="flex items-center gap-6">
             {settings.links?.community ? <a href={settings.links.community} target="_blank" rel="noreferrer" className="hover:text-cyan-glow transition-colors border-b border-transparent hover:border-cyan-glow pb-0.5">{t('community')}</a> : <span>{t('community')}</span>}
             {settings.links?.broker ? <a href={settings.links.broker} target="_blank" rel="noreferrer" className="hover:text-cyan-glow transition-colors border-b border-transparent hover:border-cyan-glow pb-0.5">{t('broker')}</a> : <span>{t('broker')}</span>}
@@ -1606,16 +1603,6 @@ export default function App() {
                     onChange={(e) => setTempSettings({...tempSettings, logoUrl: e.target.value})}
                     placeholder="https://example.com/logo.png"
                     className="w-full bg-ink-3 border border-wire rounded-lg px-3 py-2 font-mono text-[14px] text-body focus:outline-none focus:ring-2 focus:ring-cyan-glow/30"
-                  />
-                </div>
-                <div>
-                  <label className="block font-mono text-[12px] tracking-[0.1em] text-muted mb-2">{t('ownedBy')}</label>
-                  <input 
-                    type="text" 
-                    value={tempSettings.ownedBy || ''}
-                    onChange={(e) => setTempSettings({...tempSettings, ownedBy: e.target.value})}
-                    placeholder="Owned by Greedx signa"
-                    className="w-full bg-ink-3 border border-wire rounded-lg px-3 py-2 font-sans text-[14px] text-body focus:outline-none focus:ring-2 focus:ring-cyan-glow/30"
                   />
                 </div>
                 <div>
