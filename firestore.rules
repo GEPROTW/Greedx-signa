@@ -36,12 +36,12 @@ service cloud.firestore {
     // Validation Blueprint for AppSettings
     function isValidAppSettings(data) {
       return data.keys().hasAny(['title', 'logoUrl', 'accounts', 'links', 'ownedBy', 'description'])
-        && (data.title == null || (data.title is string && data.title.size() <= 64))
-        && (data.logoUrl == null || (data.logoUrl is string && data.logoUrl.size() <= 2048))
-        && (data.ownedBy == null || (data.ownedBy is string && data.ownedBy.size() <= 128))
-        && (data.description == null || (data.description is string && data.description.size() <= 512))
-        && (data.accounts == null || data.accounts is map)
-        && (data.links == null || data.links is map);
+        && (data.get('title', null) == null || (data.get('title', null) is string && data.get('title', null).size() <= 64))
+        && (data.get('logoUrl', null) == null || (data.get('logoUrl', null) is string && data.get('logoUrl', null).size() <= 2048))
+        && (data.get('ownedBy', null) == null || (data.get('ownedBy', null) is string && data.get('ownedBy', null).size() <= 128))
+        && (data.get('description', null) == null || (data.get('description', null) is string && data.get('description', null).size() <= 512))
+        && (data.get('accounts', null) == null || data.get('accounts', null) is map)
+        && (data.get('links', null) == null || data.get('links', null) is map);
     }
 
     // Match rules for Settings
