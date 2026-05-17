@@ -1,10 +1,10 @@
 {
-  "projectId": "gen-lang-client-0858876198",
-  "appId": "1:444883509700:web:cc75d0333e4d719ef04491",
-  "apiKey": "AIzaSyCquSpMiLUBL4qo39FIVLpSpVNxtT1CpZ8",
-  "authDomain": "gen-lang-client-0858876198.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-2701d49b-88aa-47b4-ab72-3b93bab68f8e",
-  "storageBucket": "gen-lang-client-0858876198.firebasestorage.app",
-  "messagingSenderId": "444883509700",
+  "projectId": "knowledgeable-cinema-nrwfn",
+  "appId": "1:46008043044:web:f573cb3b8ee2569c7e7ab1",
+  "apiKey": "AIzaSyBWYePGj3NRpvbT9GaP3DZNI3R_ygSuq-A",
+  "authDomain": "knowledgeable-cinema-nrwfn.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-2d3e08bf-8948-4861-b08b-89d8c8b49d07",
+  "storageBucket": "knowledgeable-cinema-nrwfn.firebasestorage.app",
+  "messagingSenderId": "46008043044",
   "measurementId": ""
 }

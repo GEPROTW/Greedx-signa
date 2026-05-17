@@ -12,7 +12,8 @@ import {
   endOfDay, endOfWeek, endOfMonth, endOfQuarter, endOfYear, isWithinInterval, differenceInDays
 } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
-import { ChevronDown, Moon, Sun } from 'lucide-react';
+import { ChevronDown, Moon, Sun, Zap, Landmark, BarChart3, TrendingDown, TrendingUp, Activity, LineChart, ShieldAlert } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 const TIMEZONE = '+03:00';
 
@@ -54,7 +55,7 @@ type Language = 'zh' | 'en';
 
 const translations = {
   zh: {
-    appTitle: 'Greedx signa',
+    appTitle: 'MT5 績效監控系統',
     history: '歷史交易',
     simulation: '跟單試算',
     DAY: '每日',
@@ -62,6 +63,7 @@ const translations = {
     MONTH: '每月',
     QUARTER: '每季',
     YEAR: '每年',
+    ALL: '完整歷史',
     totalPL: '總損益',
     grossProfit: '毛利',
     winRate: '勝率',
@@ -80,6 +82,7 @@ const translations = {
     quarterlyPL: '每季損益',
     yearlyPL: '每年損益',
     dailyPL: '每日損益',
+    latest10: '近 10 筆',
     type: '方向',
     symbol: '商品',
     volume: '手數',
@@ -128,7 +131,8 @@ const translations = {
     simTotal: '試算總額',
     noSimData: '無試算資料',
     community: '加入社群',
-    broker: '跟單券商',
+    broker: '券商',
+    server: '伺服器',
     tutorial: '跟單教學',
     contact: '聯繫客服',
     days: '天',
@@ -151,10 +155,30 @@ const translations = {
     hidden: '已隱藏',
     toggleTheme: '切換主題',
     toggleLanguage: '切換語言',
-    profitDetail: '損益'
+    profitDetail: '損益',
+    accountInfo: '帳戶資訊',
+    equity: '淨值',
+    floatingPL: '浮動損益',
+    overallPerformance: '整體績效',
+    avgWin: '平均獲利',
+    avgLoss: '平均虧損',
+    maxWinStreak: '最長連勝',
+    maxLossStreak: '最長連敗',
+    drawdownAnalysis: '回撤分析',
+    maxFloatingProfit: '最大浮盈',
+    totalVolume: '總交易量',
+    avgHoldTime: '平均持倉',
+    recentTrades: '最新成交記錄',
+    dealsSummary: '筆',
+    notAvailable: '暫無資料',
+    initialDeposit: '初始資金',
+    totalDeposits: '總入金',
+    totalWithdrawals: '總出金',
+    bestTrade: '單筆最大獲利',
+    worstTrade: '單筆最大虧損',
   },
   en: {
-    appTitle: 'Greedx signa',
+    appTitle: 'MT5 Performance Monitor',
     history: 'History',
     simulation: 'Simulation',
     DAY: 'Daily',
@@ -162,6 +186,7 @@ const translations = {
     MONTH: 'Monthly',
     QUARTER: 'Quarterly',
     YEAR: 'Yearly',
+    ALL: 'All Time',
     totalPL: 'Total P/L',
     grossProfit: 'Gross Profit',
     winRate: 'Win Rate',
@@ -180,6 +205,7 @@ const translations = {
     quarterlyPL: 'Quarterly P/L',
     yearlyPL: 'Yearly P/L',
     dailyPL: 'Daily P/L',
+    latest10: 'Latest 10',
     type: 'Type',
     symbol: 'Symbol',
     volume: 'Volume',
@@ -229,6 +255,7 @@ const translations = {
     noSimData: 'No Data',
     community: 'Community',
     broker: 'Broker',
+    server: 'Server',
     tutorial: 'Tutorial',
     contact: 'Contact',
     days: 'DAYS',
@@ -251,7 +278,27 @@ const translations = {
     hidden: 'Hidden',
     toggleTheme: 'Toggle Theme',
     toggleLanguage: 'Language',
-    profitDetail: 'Profit'
+    profitDetail: 'Profit',
+    accountInfo: 'Account Info',
+    equity: 'Equity',
+    floatingPL: 'Floating P/L',
+    overallPerformance: 'Overall Performance',
+    avgWin: 'Avg Win',
+    avgLoss: 'Avg Loss',
+    maxWinStreak: 'Max Win Streak',
+    maxLossStreak: 'Max Loss Streak',
+    drawdownAnalysis: 'Drawdown Analysis',
+    maxFloatingProfit: 'Max Peak Profit',
+    totalVolume: 'Total Volume',
+    avgHoldTime: 'Avg Hold Time',
+    recentTrades: 'Recent Trades',
+    dealsSummary: 'Trades',
+    notAvailable: 'N/A',
+    initialDeposit: 'Initial Deposit',
+    totalDeposits: 'Total Deposits',
+    totalWithdrawals: 'Total Withdrawals',
+    bestTrade: 'Best Trade',
+    worstTrade: 'Worst Trade',
   }
 };
 
@@ -268,33 +315,19 @@ const parseImageUrl = (url: string | undefined): string => {
   return url;
 };
 
-const getSettingsDocId = () => {
-  const hostname = window.location.hostname;
-  const pathPart = window.location.pathname.split('/')[1];
-  let id = hostname;
-  if (pathPart && pathPart !== 'index.html' && pathPart !== 'standalone.html') {
-    id += '_' + pathPart;
-  }
-  return 'appSettings_' + id.replace(/[^a-zA-Z0-9_-]/g, '_');
-};
-
 export default function App() {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeframe, setTimeframe] = useState<Timeframe>('DAY');
   const [lastSync, setLastSync] = useState<Date | null>(null);
 
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any>(null); // Kept state variable signature for code consistency
   const [settings, setSettings] = useState<AppSettings>({ title: '', logoUrl: '' });
-  const [showLoginModal, setShowLoginModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
   const [tempSettings, setTempSettings] = useState<AppSettings>({ title: '', logoUrl: '' });
-  const [accountStatsMap, setAccountStatsMap] = useState<Record<string, { maxDrawdownPct: number, maxDrawdownVal: number }>>({});
+  const [accountStatsMap, setAccountStatsMap] = useState<Record<string, { maxDrawdownPct: number, maxDrawdownVal: number, broker?: string, server?: string, avgHoldSeconds?: number }>>({});
   const [selectedAccount, setSelectedAccount] = useState<string>('');
+  const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
   const [mainTab, setMainTab] = useState<'history' | 'simulation'>('history');
   const [simAmount, setSimAmount] = useState<number>(1000);
   const [simCompound, setSimCompound] = useState<boolean>(true);
@@ -322,7 +355,8 @@ export default function App() {
     WEEK: t('WEEK'),
     MONTH: t('MONTH'),
     QUARTER: t('QUARTER'),
-    YEAR: t('YEAR')
+    YEAR: t('YEAR'),
+    ALL: t('ALL')
   }), [lang]);
 
   useEffect(() => {
@@ -379,42 +413,39 @@ export default function App() {
     return deals.filter(d => d.account?.toString() === selectedAccount);
   }, [deals, selectedAccount]);
 
-  useEffect(() => {
-    const unsubAuth = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-    });
-    return () => unsubAuth();
-  }, []);
+// Removed auth listener for temporary public access overrides
 
   useEffect(() => {
-    const docId = getSettingsDocId();
     const unsubSettings = onSnapshot(
-      doc(db, 'settings', docId),
+      doc(db, 'settings', 'appSettings'),
       (docSnap) => {
         if (docSnap.exists()) {
           setSettings(docSnap.data() as AppSettings);
         }
       },
       (err) => {
-        handleFirestoreError(err, OperationType.GET, `settings/${docId}`);
+        handleFirestoreError(err, OperationType.GET, 'settings/appSettings');
       }
     );
     return () => unsubSettings();
   }, []);
 
   useEffect(() => {
-    if (!user) return;
-    const q = query(collection(db, 'accounts'), where('ownerId', '==', user.uid));
+    // Open query for all accounts since we removed login constraint
+    const q = collection(db, 'accounts');
     const unsubAccounts = onSnapshot(
       q,
       (snapshot) => {
-        const stats: Record<string, { maxDrawdownPct: number, maxDrawdownVal: number }> = {};
+        const stats: Record<string, { maxDrawdownPct: number, maxDrawdownVal: number, broker?: string, server?: string, avgHoldSeconds?: number }> = {};
         snapshot.forEach(docSnap => {
           const data = docSnap.data();
           if (data && data.account) {
             stats[data.account.toString()] = {
               maxDrawdownPct: data.maxDrawdownPct || 0,
-              maxDrawdownVal: data.maxDrawdown || 0
+              maxDrawdownVal: data.maxDrawdown || 0,
+              broker: data.broker,
+              server: data.server,
+              avgHoldSeconds: data.avgHoldSeconds
             };
           }
         });
@@ -425,29 +456,14 @@ export default function App() {
       }
     );
     return () => unsubAccounts();
-  }, [user]);
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginError('');
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      setShowLoginModal(false);
-      setEmail('');
-      setPassword('');
-      setShowSettingsModal(true); // Open settings right away on successful login
-    } catch (err: any) {
-      setLoginError(err.message || '登入失敗');
-    }
-  };
+  }, []);
 
   const handleSaveSettings = async () => {
     try {
-      const docId = getSettingsDocId();
-      await setDoc(doc(db, 'settings', docId), tempSettings, { merge: true });
+      await setDoc(doc(db, 'settings', 'appSettings'), tempSettings, { merge: true });
       setShowSettingsModal(false);
     } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `settings/${getSettingsDocId()}`);
+      handleFirestoreError(err, OperationType.WRITE, 'settings/appSettings');
     }
   };
 
@@ -491,35 +507,12 @@ export default function App() {
   const tradeDeals = useMemo(() => dealsWithBalance.filter(d => d.type === 0 || d.type === 1 || d.type === '0' || d.type === '1'), [dealsWithBalance]);
 
   const aggregatedTableData = useMemo(() => {
-    // If 'ALL' is chosen, we just show individual trades directly
-    if (timeframe === 'ALL') {
-      return dealsWithBalance.map(deal => {
-        return {
-          id: deal.ticket,
-          period: formatInTimeZone(deal.time, TIMEZONE, 'yyyy.MM.dd HH:mm'),
-          trades: 1,
-          volume: deal.volume,
-          netProfit: deal.net,
-          grossProfit: deal.net > 0 ? deal.net : 0,
-          grossLoss: deal.net < 0 ? Math.abs(deal.net) : 0,
-          wins: (deal.type === 0 || deal.type === 1 || deal.type === '0' || deal.type === '1') && deal.profit !== 0 ? (deal.net > 0 ? 1 : 0) : 0,
-          losses: (deal.type === 0 || deal.type === 1 || deal.type === '0' || deal.type === '1') && deal.profit !== 0 ? (deal.net < 0 ? 1 : 0) : 0,
-          isSingle: true,
-          dealType: deal.type,
-          symbol: deal.symbol,
-          commission: deal.commission,
-          swap: deal.swap,
-          balance: deal.balance,
-          profit: deal.profit
-        };
-      }).reverse().slice(0, 500);
-    }
-
     const map = new Map<string, any>();
 
     dealsWithBalance.forEach(deal => {
       let periodKey = '';
       let periodDisplay = '';
+      let periodDisplayMobile = '';
 
       switch (timeframe) {
         case 'DAY':
@@ -541,9 +534,18 @@ export default function App() {
             const dd = String(dt.getUTCDate()).padStart(2, '0');
             return `${yy}.${mm}.${dd}`;
           };
+
+          const formatUTCMobile = (ms: number) => {
+            const dt = new Date(ms);
+            const yy = String(dt.getUTCFullYear()).slice(2);
+            const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
+            const dd = String(dt.getUTCDate()).padStart(2, '0');
+            return `${yy}${mm}${dd}`;
+          };
           
           periodKey = formatUTC(startOfWeekMs).replace(/\./g, '-');
           periodDisplay = `${formatUTC(startOfWeekMs)}~${formatUTC(endOfWeekMs)}`;
+          periodDisplayMobile = `${formatUTCMobile(startOfWeekMs)}~${formatUTCMobile(endOfWeekMs)}`;
           break;
         }
         case 'MONTH':
@@ -568,6 +570,7 @@ export default function App() {
         map.set(periodKey, {
           id: periodKey,
           period: periodDisplay,
+          periodMobile: periodDisplayMobile || periodDisplay,
           trades: 0,
           volume: 0,
           netProfit: 0,
@@ -635,9 +638,14 @@ export default function App() {
 
     let initialBalance = 0;
     let totalInOut = 0;
+    let totalDeposits = 0;
+    let totalWithdrawals = 0;
+
     dealsWithBalance.forEach(deal => {
       if (deal.type === 2 || deal.type === '2') {
         totalInOut += deal.net;
+        if (deal.net > 0) totalDeposits += deal.net;
+        else totalWithdrawals += deal.net;
       }
       
       if (isFirst) {
@@ -662,6 +670,8 @@ export default function App() {
 
     let currentEquity = 0;
     let exitedTrades = 0;
+    let bestTrade = 0;
+    let worstTrade = 0;
 
     tradeDeals.forEach(deal => {
       const net = deal.profit + deal.commission + deal.swap;
@@ -669,6 +679,9 @@ export default function App() {
       totalCommission += deal.commission;
       totalSwap += deal.swap;
       totalVolume += Number(deal.volume) || 0;
+
+      if (net > bestTrade) bestTrade = net;
+      if (net < worstTrade) worstTrade = net;
 
       currentEquity += net;
 
@@ -708,9 +721,59 @@ export default function App() {
       wins,
       losses,
       totalInOut,
-      initialBalance
+      initialBalance,
+      totalDeposits,
+      totalWithdrawals,
+      bestTrade,
+      worstTrade
     };
   }, [tradeDeals, dealsWithBalance]);
+
+  const extendedStats = useMemo(() => {
+    let currentWinStreak = 0;
+    let currentLossStreak = 0;
+    let maxWinStreak = 0;
+    let maxLossStreak = 0;
+    let peakBal = dealsWithBalance.length > 0 ? (dealsWithBalance[0].balance - dealsWithBalance[0].net) : 0;
+    const initBal = peakBal;
+    
+    tradeDeals.forEach(deal => {
+      const net = deal.profit + deal.commission + deal.swap;
+      
+      if (net > 0) {
+        currentWinStreak++;
+        currentLossStreak = 0;
+        if (currentWinStreak > maxWinStreak) maxWinStreak = currentWinStreak;
+      } else if (net < 0) {
+        currentLossStreak++;
+        currentWinStreak = 0;
+        if (currentLossStreak > maxLossStreak) maxLossStreak = currentLossStreak;
+      } else {
+        currentWinStreak = 0;
+        currentLossStreak = 0;
+      }
+      
+      if (deal.balance > peakBal) {
+        peakBal = deal.balance;
+      }
+    });
+
+    const maxFloatingProfit = peakBal - initBal;
+    const avgWin = stats.wins > 0 ? stats.grossProfit / stats.wins : 0;
+    const avgLoss = stats.losses > 0 ? stats.grossLoss / stats.losses : 0;
+    const latestBalance = dealsWithBalance.length > 0 ? dealsWithBalance[dealsWithBalance.length - 1].balance : 0;
+
+    // Approximate average hold time? Not possible exactly without entry time, 
+    // we'll leave it as '-' or calculate a placeholder if we want to show the UI
+    return {
+      maxWinStreak,
+      maxLossStreak,
+      maxFloatingProfit: maxFloatingProfit > 0 ? maxFloatingProfit : 0,
+      avgWin,
+      avgLoss,
+      latestBalance
+    };
+  }, [tradeDeals, dealsWithBalance, stats]);
 
   const equityCurve = useMemo(() => {
     const dailyMap = new Map<string, number>();
@@ -740,24 +803,12 @@ export default function App() {
   }, [tradeDeals]);
 
   const chartData = useMemo(() => {
-    if (timeframe === 'ALL') {
-      const dailyMap = new Map<string, number>();
-      tradeDeals.forEach(deal => {
-        const dateKey = formatInTimeZone(deal.time, TIMEZONE, 'yyyy-MM-dd');
-        const net = deal.profit + deal.commission + deal.swap;
-        dailyMap.set(dateKey, (dailyMap.get(dateKey) || 0) + net);
-      });
-      return Array.from(dailyMap.entries())
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([date, net]) => ({ date, net, display: date.split('-').slice(1).join('/') }));
-    }
-    
     return aggregatedTableData.slice().reverse().map(row => ({
       date: row.periodKey,
       net: row.netProfit,
       display: row.period
     }));
-  }, [timeframe, tradeDeals, aggregatedTableData]);
+  }, [aggregatedTableData]);
 
   const chartTitle = useMemo(() => {
     switch (timeframe) {
@@ -910,87 +961,174 @@ export default function App() {
       <div className="relative z-10 max-w-[1440px] mx-auto px-4 md:px-8">
         
         {/* HEADER */}
-        <header className="pt-8 pb-7 border-b border-wire flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <header className="pt-4 md:pt-8 pb-4 md:pb-7 border-b border-wire flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6">
           <div className="flex items-center gap-3 md:gap-5 w-full md:w-auto">
-            <div className="relative w-12 h-12 md:w-24 md:h-24 shrink-0 rounded-xl md:rounded-2xl grid place-items-center bg-ink-2 overflow-hidden shadow-sm border border-wire">
+            <div className="relative w-10 h-10 md:w-24 md:h-24 shrink-0 rounded-xl md:rounded-2xl grid place-items-center bg-ink-2 overflow-hidden shadow-sm border border-wire">
               <div className="absolute inset-1 bg-gradient-to-br from-cyan-glow/10 to-transparent z-0" />
               {settings.logoUrl ? (
                 <img src={parseImageUrl(settings.logoUrl)} alt="Logo" className="w-full h-full object-cover relative z-10" referrerPolicy="no-referrer" />
               ) : (
-                <span className="font-display font-medium text-[24px] md:text-[40px] text-cyan-glow relative z-10 leading-none">M</span>
+                <span className="font-display font-medium text-[20px] md:text-[40px] text-cyan-glow relative z-10 leading-none">M</span>
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <h1 className="font-display text-[clamp(15px,4.5vw,34px)] sm:text-[20px] md:text-[34px] tracking-wide md:tracking-[0.06em] text-bright leading-tight uppercase drop-shadow-sm">
+              <h1 className="font-display text-[16px] xs:text-[18px] sm:text-[20px] md:text-[34px] tracking-tight md:tracking-[0.06em] text-bright leading-tight uppercase drop-shadow-sm font-bold md:font-medium">
                 {settings.title || t('appTitle')}
               </h1>
             </div>
           </div>
           <div className="text-left md:text-right flex flex-col md:items-end w-full md:w-auto">
-            <div className="flex items-center justify-start md:justify-end gap-3 mb-3 md:mb-5">
+            <div className="flex items-center justify-between md:justify-end gap-3 mb-2 md:mb-5">
               {orderedAccounts.length > 0 && (
-                <div className="flex items-center gap-2">
-                  {selectedAccount && settings.accounts?.[selectedAccount]?.logoUrl && (
-                    <img 
-                      src={parseImageUrl(settings.accounts[selectedAccount].logoUrl)} 
-                      alt="Account Logo" 
-                      className="w-8 h-8 rounded-full object-cover border border-cyan-glow/30" 
-                      referrerPolicy="no-referrer"
-                    />
-                  )}
-                  <div className="relative group">
-                    <select
-                      value={selectedAccount}
-                      onChange={(e) => setSelectedAccount(e.target.value)}
-                      className="appearance-none bg-ink-3 border border-wire text-bright text-[13px] rounded-lg font-sans tracking-wide pl-3 pr-9 py-1.5 focus:outline-none focus:ring-2 focus:ring-cyan-glow/30 cursor-pointer min-w-[140px]"
+                <div className="relative z-50">
+                  <button
+                    onClick={() => setIsAccountDropdownOpen(p => !p)}
+                    onBlur={() => setTimeout(() => setIsAccountDropdownOpen(false), 200)}
+                    className={`flex items-center justify-between transition-all duration-300 appearance-none bg-ink-2/80 backdrop-blur-md border ${isAccountDropdownOpen ? 'border-cyan-glow/50 ring-2 ring-cyan-glow/20' : 'border-wire/80 hover:border-dim/50'} text-bright text-[12px] sm:text-[13px] rounded-lg font-sans tracking-wide p-1.5 pr-2 focus:outline-none cursor-pointer min-w-[200px] sm:min-w-[240px] max-w-[280px] shadow-sm`}
+                  >
+                    <div className="flex items-center gap-2.5 truncate">
+                      <AnimatePresence mode="popLayout">
+                        <motion.div
+                          key={selectedAccount}
+                          initial={{ scale: 0.8, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0.8, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          {orderedAccounts.find(a => a.account.toString() === selectedAccount)?.logoUrl ? (
+                            <img 
+                              src={parseImageUrl(orderedAccounts.find(a => a.account.toString() === selectedAccount)!.logoUrl!)} 
+                              alt="Account Logo" 
+                              className="w-7 h-7 rounded-md object-cover shadow-sm bg-ink-3 shrink-0 border border-wire/30" 
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-7 h-7 rounded-md shadow-sm bg-ink-3 shrink-0 border border-wire/30 flex items-center justify-center">
+                              <span className="font-mono text-[10px] text-dim">{orderedAccounts.find(a => a.account.toString() === selectedAccount)?.label?.charAt(0) || selectedAccount.charAt(0)}</span>
+                            </div>
+                          )}
+                        </motion.div>
+                      </AnimatePresence>
+                      <span className="truncate text-left font-medium">
+                        {orderedAccounts.find(a => a.account.toString() === selectedAccount)?.label || selectedAccount}
+                      </span>
+                    </div>
+                    <motion.div
+                      animate={{ rotate: isAccountDropdownOpen ? 180 : 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="px-1"
                     >
-                      {orderedAccounts.map(acc => (
-                        <option key={acc.account} value={acc.account.toString()}>
-                          {acc.label || acc.account.toString()}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-dim pointer-events-none group-hover:text-bright transition-colors" />
-                  </div>
+                      <ChevronDown className="w-3.5 h-3.5 text-dim transition-colors hover:text-bright shrink-0" />
+                    </motion.div>
+                  </button>
+                  
+                  <AnimatePresence>
+                    {isAccountDropdownOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 5, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 5, scale: 0.95 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        className="absolute top-full left-0 md:right-0 md:left-auto mt-1.5 w-full min-w-[200px] sm:min-w-[240px] bg-ink-1/95 border border-wire/60 rounded-xl shadow-[0_16px_40px_rgb(0,0,0,0.3)] overflow-hidden z-[100] backdrop-blur-xl"
+                      >
+                        <div className="flex flex-col py-1.5 max-h-[250px] overflow-y-auto w-full">
+                          {orderedAccounts.map(acc => (
+                            <button
+                              key={acc.account}
+                              onClick={() => {
+                                setSelectedAccount(acc.account.toString());
+                                setIsAccountDropdownOpen(false);
+                              }}
+                              className={`relative text-left px-2 py-2 text-[12px] sm:text-[13px] font-sans transition-colors whitespace-nowrap outline-none flex items-center justify-between w-full group ${
+                                selectedAccount === acc.account.toString()
+                                  ? 'bg-cyan-glow/15 text-cyan-glow font-medium'
+                                  : 'text-dim hover:bg-ink-3 hover:text-bright'
+                              }`}
+                            >
+                              {selectedAccount === acc.account.toString() && (
+                                <motion.div layoutId="account-active-indicator" className="absolute left-0 top-0 bottom-0 w-[3px] bg-cyan-glow" />
+                              )}
+                              <div className="flex items-center gap-2.5 truncate ml-1">
+                                {acc.logoUrl ? (
+                                  <img 
+                                    src={parseImageUrl(acc.logoUrl)} 
+                                    alt="Account Logo" 
+                                    className={`w-6 h-6 rounded object-cover shadow-sm bg-ink-3 shrink-0 transition-all ${selectedAccount === acc.account.toString() ? 'border shadow-[0_0_8px_var(--color-cyan-glow)] border-cyan-glow/50' : 'opacity-80 group-hover:opacity-100 border border-wire/30'}`} 
+                                    referrerPolicy="no-referrer"
+                                  />
+                                ) : (
+                                  <div className={`w-6 h-6 rounded shadow-sm bg-ink-2 shrink-0 flex items-center justify-center transition-all ${selectedAccount === acc.account.toString() ? 'border shadow-[0_0_8px_var(--color-cyan-glow)] border-cyan-glow/50' : 'opacity-80 group-hover:opacity-100 border border-wire/30'}`}>
+                                    <span className={`font-mono text-[9px] ${selectedAccount === acc.account.toString() ? 'text-cyan-glow' : 'text-dim'}`}>{acc.label?.charAt(0) || acc.account.toString().charAt(0)}</span>
+                                  </div>
+                                )}
+                                <span className="truncate">{acc.label || acc.account.toString()}</span>
+                              </div>
+                              {selectedAccount === acc.account.toString() && (
+                                <div className="w-1.5 h-1.5 rounded-full bg-cyan-glow ml-2 flex-shrink-0 mr-1" />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               )}
-              <button
-                onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
-                className="w-8 h-8 flex items-center justify-center rounded-lg border border-wire bg-ink-2 text-dim hover:text-bright transition-colors"
-                title={t('toggleTheme')}
-              >
-                {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-              </button>
-              <button
-                onClick={() => setLang(prev => prev === 'zh' ? 'en' : 'zh')}
-                className="h-8 px-2 flex items-center justify-center rounded-lg border border-wire bg-ink-2 text-dim hover:text-bright transition-colors font-mono text-[11px] font-bold"
-                title={t('toggleLanguage')}
-              >
-                {lang === 'zh' ? 'EN' : '中'}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
+                  className="w-8 h-8 flex flex-col items-center justify-center rounded-lg border border-wire bg-ink-2 text-dim hover:text-bright transition-colors overflow-hidden"
+                  title={t('toggleTheme')}
+                >
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={theme}
+                      initial={{ opacity: 0, scale: 0.5, rotate: -45 }}
+                      animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                      exit={{ opacity: 0, scale: 0.5, rotate: 45 }}
+                      transition={{ duration: 0.2, ease: 'easeOut' }}
+                    >
+                      {theme === 'light' ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
+                    </motion.div>
+                  </AnimatePresence>
+                </button>
+                <button
+                  onClick={() => setLang(prev => prev === 'zh' ? 'en' : 'zh')}
+                  className="w-8 h-8 flex flex-col items-center justify-center rounded-lg border border-wire bg-ink-2 text-dim hover:text-bright transition-colors font-mono text-[10px] font-bold overflow-hidden"
+                  title={t('toggleLanguage')}
+                >
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={lang}
+                      initial={{ opacity: 0, y: 15, rotateX: -90 }}
+                      animate={{ opacity: 1, y: 0, rotateX: 0 }}
+                      exit={{ opacity: 0, y: -15, rotateX: 90 }}
+                      transition={{ duration: 0.2, ease: 'easeOut' }}
+                    >
+                      {lang === 'zh' ? 'EN' : '中'}
+                    </motion.div>
+                  </AnimatePresence>
+                </button>
+              </div>
             </div>
-            <div className="flex items-center justify-start md:justify-end gap-1.5 font-mono text-[10px] md:text-[11px] tracking-[0.12em] text-muted uppercase opacity-70">
+            <div className="flex items-center justify-start md:justify-end gap-1.5 font-mono text-[9px] md:text-[11px] tracking-[0.12em] text-muted uppercase opacity-70">
               <span 
                 onClick={() => {
-                  if (user) {
-                    const detectedAccounts = new Set(deals.filter(d => d.account != null).map(d => d.account!.toString()));
-                    let initialAccounts: Record<string, AccountConfig> = { ...settings.accounts };
-                    let orderCounter = Object.keys(initialAccounts).length;
-                    detectedAccounts.forEach((accStr: string) => {
-                      if (!initialAccounts[accStr]) {
-                        initialAccounts[accStr] = {
-                          account: parseInt(accStr, 10),
-                          label: accStr,
-                          isHidden: false,
-                          order: orderCounter++
-                        };
-                      }
-                    });
-                    setTempSettings({ title: settings.title || '', logoUrl: settings.logoUrl || '', accounts: initialAccounts, links: settings.links || {} });
-                    setShowSettingsModal(true);
-                  } else {
-                    setShowLoginModal(true);
-                  }
+                  const detectedAccounts = new Set(deals.filter(d => d.account != null).map(d => d.account!.toString()));
+                  let initialAccounts: Record<string, AccountConfig> = { ...settings.accounts };
+                  let orderCounter = Object.keys(initialAccounts).length;
+                  detectedAccounts.forEach((accStr: string) => {
+                    if (!initialAccounts[accStr]) {
+                      initialAccounts[accStr] = {
+                        account: parseInt(accStr, 10),
+                        label: accStr,
+                        isHidden: false,
+                        order: orderCounter++
+                      };
+                    }
+                  });
+                  setTempSettings({ title: settings.title || '', logoUrl: settings.logoUrl || '', accounts: initialAccounts, links: settings.links || {} });
+                  setShowSettingsModal(true);
                 }}
                 className={`w-1.5 h-1.5 rounded-full cursor-pointer hover:scale-150 transition-transform shadow-[0_0_6px_var(--color-green-neon)] ${loading ? 'bg-gold animate-pulse shadow-[0_0_6px_var(--color-gold)]' : 'bg-green-neon'}`} 
               />
@@ -1005,8 +1143,15 @@ export default function App() {
             <div className="font-mono text-[13px] tracking-[0.1em] text-muted text-center uppercase">{t('loading')}</div>
           </div>
         ) : (
-          <>
-            {/* KPI STRIP */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`${selectedAccount}-${lang}`}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+            >
+              {/* KPI STRIP */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4 mt-7">
               <KPIBox 
                 accent="bg-cyan-glow" 
@@ -1041,14 +1186,6 @@ export default function App() {
                 colorClass="text-bright"
               />
               <KPIBox 
-                accent="bg-red-neon" 
-                label={t('maxDrawdown')} 
-                value={`$${formatNum(accountStatsMap[selectedAccount]?.maxDrawdownVal || stats.maxDrawdown)} (${formatNum(accountStatsMap[selectedAccount]?.maxDrawdownPct || stats.maxDrawdownPct)}%)`} 
-                sub={t('maxDrawdown')}
-                isPositive={false}
-                bg="DD" 
-              />
-              <KPIBox 
                 accent="bg-purple-glow" 
                 label={t('accVolume')} 
                 value={formatNum(stats.totalVolume)} 
@@ -1056,22 +1193,166 @@ export default function App() {
                 bg="L" 
                 colorClass="text-bright"
               />
+              <KPIBox 
+                accent="bg-red-neon" 
+                label={t('maxDrawdown')} 
+                value={
+                  <div className="flex flex-col">
+                    <span>${formatNum(accountStatsMap[selectedAccount]?.maxDrawdownVal || stats.maxDrawdown)}</span>
+                    <span className="text-[13px] xs:text-[15px] sm:text-[18px] lg:text-[20px] opacity-80 mt-0.5">({formatNum(accountStatsMap[selectedAccount]?.maxDrawdownPct || stats.maxDrawdownPct)}%)</span>
+                  </div>
+                }
+                sub={t('maxDrawdown')}
+                isPositive={false}
+                bg="DD" 
+              />
+            </div>
+
+            {/* LEFT SIDEBAR STATS (MOVED UP) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+              {/* ACCOUNT INFO */}
+              <div className="bg-ink-2 border border-wire rounded-xl shadow-sm p-5 lg:p-6 relative overflow-hidden flex flex-col">
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(0,200,224,0.04),transparent)] pointer-events-none" />
+                <div className="flex items-center gap-3 border-b border-wire/40 pb-4 mb-4 relative z-10 shrink-0">
+                  <Landmark className="w-4 h-4 text-blue-400" />
+                  <span className="font-display tracking-[0.05em] text-bright font-medium text-[14px]">{t('accountInfo')}</span>
+                </div>
+                <div className="flex flex-col gap-3.5 relative z-10">
+                  <div className="flex justify-between items-center group">
+                    <span className="font-mono text-[13px] text-dim group-hover:text-bright transition-colors">{t('balance')}</span>
+                    <span className="font-mono text-[14px] text-blue-400 tabular-nums">${formatNum(extendedStats.latestBalance)}</span>
+                  </div>
+                  <div className="flex justify-between items-center group">
+                    <span className="font-mono text-[13px] text-dim group-hover:text-bright transition-colors">{t('equity')}</span>
+                    <span className="font-mono text-[14px] text-green-neon tabular-nums">${formatNum(extendedStats.latestBalance)}</span>
+                  </div>
+                  <div className="flex justify-between items-center group">
+                    <span className="font-mono text-[13px] text-dim group-hover:text-bright transition-colors">{t('floatingPL')}</span>
+                    <span className="font-mono text-[14px] text-green-neon tabular-nums">+0.00</span>
+                  </div>
+                  <div className="flex justify-between items-center group">
+                    <span className="font-mono text-[13px] text-dim group-hover:text-bright transition-colors">{t('totalDeposits')}</span>
+                    <span className="font-mono text-[14px] text-green-neon tabular-nums">${formatNum(stats.totalDeposits)}</span>
+                  </div>
+                  <div className="flex justify-between items-center group">
+                    <span className="font-mono text-[13px] text-dim group-hover:text-bright transition-colors">{t('totalWithdrawals')}</span>
+                    <span className="font-mono text-[14px] text-red-neon tabular-nums">-${formatNum(Math.abs(stats.totalWithdrawals))}</span>
+                  </div>
+                  <div className="flex justify-between items-center group">
+                    <span className="font-mono text-[13px] text-dim group-hover:text-bright transition-colors">{t('broker')}</span>
+                    <span className="font-mono text-[14px] text-muted">{accountStatsMap[selectedAccount]?.broker || settings.links?.broker || t('notAvailable')}</span>
+                  </div>
+                  <div className="flex justify-between items-center group">
+                    <span className="font-mono text-[13px] text-dim group-hover:text-bright transition-colors">{t('server')}</span>
+                    <span className="font-mono text-[14px] text-muted">{accountStatsMap[selectedAccount]?.server || t('notAvailable')}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* OVERALL PERFORMANCE */}
+              <div className="bg-ink-2 border border-wire rounded-xl shadow-sm p-5 lg:p-6 relative overflow-hidden flex flex-col">
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(0,200,224,0.04),transparent)] pointer-events-none" />
+                <div className="flex items-center gap-3 border-b border-wire/40 pb-4 mb-4 relative z-10 shrink-0">
+                  <BarChart3 className="w-4 h-4 text-green-400" />
+                  <span className="font-display tracking-[0.05em] text-bright font-medium text-[14px]">{t('overallPerformance')}</span>
+                </div>
+                <div className="flex flex-col gap-3.5 relative z-10">
+                  <div className="flex justify-between items-center group">
+                    <span className="font-mono text-[13px] text-dim group-hover:text-bright transition-colors">{t('totalPL')}</span>
+                    <span className={`font-mono text-[14px] tabular-nums ${stats.totalProfit >= 0 ? 'text-green-neon' : 'text-red-neon'}`}>
+                      {stats.totalProfit >= 0 ? '+' : ''}{formatNum(stats.totalProfit)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center group">
+                    <span className="font-mono text-[13px] text-dim group-hover:text-bright transition-colors">{t('winRate')}</span>
+                    <span className="font-mono text-[14px] text-green-neon tabular-nums">
+                      <span className="text-muted text-[12px] mr-1">({stats.wins}{t('wins')} / {stats.losses}{t('losses')})</span> {formatNum(stats.winRate)}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center group">
+                    <span className="font-mono text-[13px] text-dim group-hover:text-bright transition-colors">{t('profitFactor')}</span>
+                    <span className="font-mono text-[14px] text-cyan-glow tabular-nums">{formatNum(stats.profitFactor)}</span>
+                  </div>
+                  <div className="flex justify-between items-center group">
+                    <span className="font-mono text-[13px] text-dim group-hover:text-bright transition-colors">{t('avgWin')}</span>
+                    <span className="font-mono text-[14px] text-green-neon tabular-nums">+{formatNum(extendedStats.avgWin)}</span>
+                  </div>
+                  <div className="flex justify-between items-center group">
+                    <span className="font-mono text-[13px] text-dim group-hover:text-bright transition-colors">{t('avgLoss')}</span>
+                    <span className="font-mono text-[14px] text-red-neon tabular-nums">-{formatNum(extendedStats.avgLoss)}</span>
+                  </div>
+                  <div className="flex justify-between items-center group">
+                    <span className="font-mono text-[13px] text-dim group-hover:text-bright transition-colors">{t('maxWinStreak')}</span>
+                    <span className="font-mono text-[14px] text-green-neon tabular-nums">{extendedStats.maxWinStreak} {t('dealsSummary')}</span>
+                  </div>
+                  <div className="flex justify-between items-center group">
+                    <span className="font-mono text-[13px] text-dim group-hover:text-bright transition-colors">{t('maxLossStreak')}</span>
+                    <span className="font-mono text-[14px] text-red-neon tabular-nums">{extendedStats.maxLossStreak} {t('dealsSummary')}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* DRAWDOWN ANALYSIS */}
+              <div className="bg-ink-2 border border-wire rounded-xl shadow-sm p-5 lg:p-6 relative overflow-hidden flex flex-col">
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(0,200,224,0.04),transparent)] pointer-events-none" />
+                <div className="flex items-center gap-3 border-b border-wire/40 pb-4 mb-4 relative z-10 shrink-0">
+                  <ShieldAlert className="w-4 h-4 text-rose-400" />
+                  <span className="font-display tracking-[0.05em] text-bright font-medium text-[14px]">{t('drawdownAnalysis')}</span>
+                </div>
+                <div className="flex flex-col gap-3.5 relative z-10">
+                  <div className="flex justify-between items-center group">
+                    <span className="font-mono text-[13px] text-dim group-hover:text-bright transition-colors">{t('maxDrawdown')}</span>
+                    <span className="font-mono text-[14px] text-red-neon tabular-nums">-${formatNum(accountStatsMap[selectedAccount]?.maxDrawdownVal || stats.maxDrawdown)}</span>
+                  </div>
+                  <div className="flex justify-between items-center group">
+                    <span className="font-mono text-[13px] text-dim group-hover:text-bright transition-colors">{t('maxFloatingProfit')}</span>
+                    <span className="font-mono text-[14px] text-green-neon tabular-nums">+{formatNum(extendedStats.maxFloatingProfit)}</span>
+                  </div>
+                  <div className="flex justify-between items-center group">
+                    <span className="font-mono text-[13px] text-dim group-hover:text-bright transition-colors">{t('bestTrade')}</span>
+                    <span className="font-mono text-[14px] text-green-neon tabular-nums">${formatNum(stats.bestTrade)}</span>
+                  </div>
+                  <div className="flex justify-between items-center group">
+                    <span className="font-mono text-[13px] text-dim group-hover:text-bright transition-colors">{t('worstTrade')}</span>
+                    <span className="font-mono text-[14px] text-red-neon tabular-nums">-${formatNum(Math.abs(stats.worstTrade))}</span>
+                  </div>
+                  <div className="flex justify-between items-center group">
+                    <span className="font-mono text-[13px] text-dim group-hover:text-bright transition-colors">{t('totalTrades')}</span>
+                    <span className="font-mono text-[14px] text-cyan-glow tabular-nums">{stats.totalTrades} {t('dealsSummary')}</span>
+                  </div>
+                  <div className="flex justify-between items-center group">
+                    <span className="font-mono text-[13px] text-dim group-hover:text-bright transition-colors">{t('totalVolume')}</span>
+                    <span className="font-mono text-[14px] text-gold tabular-nums">{formatNum(stats.totalVolume)} {t('volume')}</span>
+                  </div>
+                  <div className="flex justify-between items-center group">
+                    <span className="font-mono text-[13px] text-dim group-hover:text-bright transition-colors">{t('avgHoldTime')}</span>
+                    <span className="font-mono text-[14px] text-muted tabular-nums">
+                      {accountStatsMap[selectedAccount]?.avgHoldSeconds != null ? (
+                        `${Math.floor(accountStatsMap[selectedAccount].avgHoldSeconds! / 3600)}h ${Math.floor((accountStatsMap[selectedAccount].avgHoldSeconds! % 3600) / 60)}m`
+                      ) : t('notAvailable')}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* CHARTS GRID TOP */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
-              <div className="lg:col-span-2 bg-ink-2 border border-wire rounded-xl shadow-sm p-5 lg:p-6 relative overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mt-4">
+              <div className="lg:col-span-2 bg-ink-2 border border-wire rounded-xl shadow-sm p-5 lg:p-6 relative overflow-hidden flex flex-col h-[340px]">
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(0,200,224,0.04),transparent)] pointer-events-none" />
-                <div className="flex justify-between items-start mb-4 relative z-10">
-                  <div className="font-mono text-[12px] tracking-[0.14em] text-muted uppercase">{t('equityCurve')}</div>
+                <div className="flex justify-between items-start border-b border-wire/40 pb-4 mb-4 relative z-10 shrink-0">
+                  <div className="flex items-center gap-3">
+                    <LineChart className="w-4 h-4 text-green-400" />
+                    <span className="font-display tracking-[0.05em] text-bright font-medium text-[14px]">{t('equityCurve')}</span>
+                  </div>
                   <div className="text-right">
                     <div className={`font-display tabular-nums text-[24px] tracking-[0.02em] ${stats.totalProfit >= 0 ? 'text-green-neon' : 'text-red-neon'}`}>
                       ${formatNum(stats.totalProfit)}
                     </div>
-                    <div className="font-mono text-[12px] text-dim mt-0.5">{t('totalPL')}</div>
+                    <div className="font-mono text-[12px] text-dim mt-0.5 text-right">{t('totalPL')}</div>
                   </div>
                 </div>
-                <div className="h-[200px] w-full relative z-10">
+                <div className="flex-1 w-full relative z-10 min-h-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={equityCurve} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
                       <defs>
@@ -1094,12 +1375,13 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="bg-ink-2 border border-wire rounded-xl shadow-sm p-5 lg:p-6 relative overflow-hidden flex flex-col">
+              <div className="bg-ink-2 border border-wire rounded-xl shadow-sm p-5 lg:p-6 relative overflow-hidden flex flex-col h-[340px]">
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(0,200,224,0.04),transparent)] pointer-events-none" />
-                <div className="flex justify-between items-start mb-4 relative z-10">
-                  <div className="font-mono text-[12px] tracking-[0.14em] text-muted uppercase">{chartTitle}</div>
+                <div className="flex items-center gap-3 border-b border-wire/40 pb-4 mb-4 relative z-10 shrink-0">
+                  <Activity className="w-4 h-4 text-cyan-400" />
+                  <span className="font-display tracking-[0.05em] text-bright font-medium text-[14px]">{chartTitle}</span>
                 </div>
-                <div className="flex-1 min-h-[200px] w-full relative z-10">
+                <div className="flex-1 w-full relative z-10 min-h-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={chartData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--color-wire)" vertical={false} />
@@ -1131,6 +1413,50 @@ export default function App() {
                   </ResponsiveContainer>
                 </div>
               </div>
+
+              {/* RECENT TRADES (MOVED) */}
+              <div className="bg-ink-2 border border-wire rounded-xl shadow-sm p-5 lg:p-6 relative overflow-hidden flex flex-col h-[340px]">
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(0,200,224,0.04),transparent)] pointer-events-none" />
+                <div className="flex flex-wrap gap-3 items-center justify-between border-b border-wire/40 pb-4 mb-4 relative z-10 shrink-0">
+                  <div className="flex items-center gap-3">
+                    <Zap className="w-4 h-4 text-orange-400" />
+                    <span className="font-display tracking-[0.05em] text-bright font-medium text-[14px]">{t('recentTrades')}</span>
+                  </div>
+                  <div className="px-3 py-1 bg-cyan-glow/10 border border-cyan-glow/20 rounded-full font-mono text-[11px] text-cyan-glow">
+                    {t('latest10')}
+                  </div>
+                </div>
+                <div className="flex flex-col divide-y divide-wire/20 overflow-y-auto flex-1 relative z-10 -mx-5 lg:-mx-6">
+                  {tradeDeals.length === 0 && (
+                    <div className="p-10 text-center font-mono text-[13px] text-muted">
+                      {t('noTradeRecord')}
+                    </div>
+                  )}
+                  {[...tradeDeals].reverse().slice(0, 10).map((deal, i) => {
+                    const net = deal.profit + deal.commission + deal.swap;
+                    const isWin = net >= 0;
+                    return (
+                      <div key={i} className="flex flex-col px-5 lg:px-6 py-4 relative hover:bg-[rgba(0,200,224,0.02)] transition-colors group shrink-0">
+                        <div className={`absolute left-0 top-3 bottom-3 w-1 rounded-r-full transition-opacity ${isWin ? 'bg-green-neon' : 'bg-red-neon'}`} />
+                        <div className="flex justify-between items-start mb-2 pl-2">
+                          <div className="font-mono text-[14px] text-bright font-bold">
+                            {deal.type === 0 || deal.type === '0' ? 'Buy' : 'Sell'} {deal.volume} {t('volume')}
+                          </div>
+                          <div className={`font-mono text-[15px] font-bold tracking-tight ${isWin ? 'text-green-neon' : 'text-red-neon'}`}>
+                            {isWin ? '+' : ''}{formatNum(net)}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 pl-2 font-mono text-[11px] text-dim whitespace-nowrap overflow-hidden text-ellipsis opacity-80">
+                          <span className="text-muted">#{deal.ticket}</span>
+                          <span>{formatInTimeZone(deal.time, TIMEZONE, 'yyyy-MM-dd HH:mm')}</span>
+                          <span>·</span>
+                          <span className="text-muted">{deal.symbol}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
             {/* MAIN TABS */}
@@ -1159,162 +1485,246 @@ export default function App() {
               </div>
             </div>
 
-            {mainTab === 'history' ? (
-              <div className="animate-in fade-in zoom-in-95 duration-500 ease-out">
-                {/* TIMEFRAME SELECTOR CARDS - COMPACT ROW */}
-                <div className="flex w-full gap-1.5 mb-4">
-                  {(['DAY', 'WEEK', 'MONTH', 'QUARTER', 'YEAR'] as Timeframe[]).map(tf => (
-                    <button
-                      key={tf}
-                      onClick={() => setTimeframe(tf)}
-                      className={`relative group flex-1 flex flex-col items-center justify-center py-1.5 rounded-lg border transition-all duration-300 min-w-0 ${
-                        timeframe === tf 
-                          ? 'bg-ink-3 border-cyan-glow/60 shadow-[0_0_12px_rgba(0,200,224,0.08)]' 
-                          : 'bg-ink-2/50 border-wire/40 hover:border-dim/30'
-                      }`}
-                    >
-                      {timeframe === tf && (
-                        <div className="absolute inset-0 bg-gradient-to-br from-cyan-glow/5 to-transparent rounded-lg pointer-events-none" />
-                      )}
-                      <span className={`font-display text-[12px] md:text-[13px] tracking-tight transition-colors ${timeframe === tf ? 'text-cyan-glow font-medium' : 'text-dim group-hover:text-bright'}`}>
-                        {timeframeLabels[tf]}
-                      </span>
-                      <div className={`mt-0.5 h-0.5 w-3 rounded-full transition-all duration-300 ${timeframe === tf ? 'bg-cyan-glow scale-x-100' : 'bg-transparent scale-x-0'}`} />
-                    </button>
-                  ))}
-                </div>
+            <AnimatePresence mode="wait">
+              {mainTab === 'history' ? (
+                <motion.div
+                  key="history"
+                  initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                  transition={{ duration: 0.3, ease: 'easeOut' }}
+                  className="w-full"
+                >
+                <div className="grid grid-cols-1 gap-6 mb-8 w-full">
+                  
+                  {/* FULL WIDTH: History List */}
+                  <div className="flex flex-col gap-6 w-full">
+                    
+                    {/* TIMEFRAME SELECTOR CARDS - COMPACT ROW */}
+                    <div className="grid grid-cols-5 gap-1.5 sm:gap-3 w-full">
+                      {(['DAY', 'WEEK', 'MONTH', 'QUARTER', 'YEAR'] as Timeframe[]).map(tf => (
+                        <button
+                          key={tf}
+                          onClick={() => setTimeframe(tf as Timeframe)}
+                          className={`relative group flex flex-col items-center justify-center py-2 sm:py-2.5 px-1 rounded-xl border transition-all duration-300 ${
+                            timeframe === tf 
+                              ? 'bg-ink-3 border-cyan-glow/60 shadow-[0_0_12px_rgba(0,200,224,0.08)]' 
+                              : 'bg-ink-2/50 border-wire/40 hover:border-dim/30'
+                          }`}
+                        >
+                          {timeframe === tf && (
+                            <div className="absolute inset-0 bg-gradient-to-br from-cyan-glow/5 to-transparent rounded-xl pointer-events-none" />
+                          )}
+                          <span className={`font-display text-[12px] sm:text-[14px] tracking-tight transition-colors ${timeframe === tf ? 'text-cyan-glow font-semibold' : 'text-dim group-hover:text-bright'}`}>
+                            {timeframeLabels[tf as Timeframe]}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
 
-            <div className="overflow-auto max-h-[70vh] md:max-h-none md:overflow-visible border border-wire/60 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] bg-ink-2/80 backdrop-blur-md">
-              <table className="w-full border-collapse min-w-[700px] relative">
-                <thead className="sticky top-0 z-20">
-                  <tr className="bg-ink-3/95 backdrop-blur-sm border-b border-wire shadow-sm">
-                    {timeframe === 'ALL' ? (
-                      <>
-                        <th className="font-mono text-[11px] tracking-[0.14em] text-dim pl-5 pr-4 py-3 text-left font-normal border-r border-wire/30 w-16 uppercase whitespace-nowrap">{t('type')}</th>
-                        <th className="font-mono text-[11px] tracking-[0.14em] text-dim px-4 py-3 text-left font-normal border-r border-wire/30 uppercase whitespace-nowrap">{t('symbol')}</th>
-                        <th className="font-mono text-[11px] tracking-[0.14em] text-dim px-4 py-3 text-right font-normal border-r border-wire/30 uppercase whitespace-nowrap">{t('volume')}</th>
-                        <th className="font-mono text-[11px] tracking-[0.14em] text-dim px-4 py-3 text-right font-normal border-r border-wire/30 uppercase whitespace-nowrap">{t('commission')}</th>
-                        <th className="font-mono text-[11px] tracking-[0.14em] text-dim px-4 py-3 text-right font-normal border-r border-wire/30 uppercase whitespace-nowrap">{t('swap')}</th>
-                        <th className="font-mono text-[11px] tracking-[0.14em] text-dim px-4 py-3 text-right font-normal border-r border-wire/30 uppercase whitespace-nowrap">{t('netPL')}</th>
-                        <th className="font-mono text-[11px] tracking-[0.14em] text-dim px-4 py-3 text-right font-normal uppercase pr-5 whitespace-nowrap">{t('closeTime')}</th>
-                      </>
-                    ) : (
-                      <>
-                        <th className="font-mono text-[11px] tracking-[0.14em] text-dim pl-5 pr-4 py-3 text-left font-normal border-r border-wire/30 uppercase whitespace-nowrap">{t('period')}</th>
-                        <th className="font-mono text-[11px] tracking-[0.14em] text-dim px-4 py-3 text-right font-normal border-r border-wire/30 uppercase whitespace-nowrap">{t('trades')}</th>
-                        <th className="font-mono text-[11px] tracking-[0.14em] text-dim px-4 py-3 text-right font-normal border-r border-wire/30 uppercase whitespace-nowrap">{t('volume')}</th>
-                        <th className="font-mono text-[11px] tracking-[0.14em] text-dim px-4 py-3 text-right font-normal border-r border-wire/30 uppercase whitespace-nowrap">{t('netPLPct')}</th>
-                        <th className="font-mono text-[11px] tracking-[0.14em] text-dim px-4 py-3 text-right font-normal border-r border-wire/30 uppercase whitespace-nowrap">{t('winRate')}</th>
-                        <th className="font-mono text-[11px] tracking-[0.14em] text-dim px-4 py-3 text-right font-normal border-r border-wire/30 uppercase whitespace-nowrap">{t('profitVal')}</th>
-                        <th className="font-mono text-[11px] tracking-[0.14em] text-dim px-4 py-3 text-right font-normal border-r border-wire/30 uppercase whitespace-nowrap">{t('depositWithdrawal')}</th>
-                        <th className="font-mono text-[11px] tracking-[0.14em] text-dim px-4 py-3 text-right font-normal uppercase pr-5 whitespace-nowrap">{t('balance')}</th>
-                      </>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {aggregatedTableData.map((row) => {
-                    const isWin = row.netProfit >= 0;
-                    const winRate = row.trades > 0 ? (row.wins / row.trades) * 100 : 0;
-                    const pct = row.startingBalance !== 0 ? (row.netProfit / row.startingBalance) * 100 : 0;
-
-                    return (
-                      <tr 
-                        key={row.id} 
-                        className="border-b border-wire/60 transition-colors hover:bg-[rgba(0,200,224,0.025)] last:border-b-0 relative group"
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={timeframe}
+                        initial={{ opacity: 0, scale: 0.98, y: 5 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.98, y: -5 }}
+                        transition={{ duration: 0.2, ease: 'easeOut' }}
+                        className="w-full"
                       >
-                        <td className="relative px-5 py-2 text-left border-r border-wire/30">
-                          <div className={`absolute left-0 top-0 bottom-0 w-[3px] opacity-0 group-hover:opacity-100 transition-opacity ${isWin ? 'bg-green-neon' : 'bg-red-neon'}`} />
-                          <div className="font-display tabular-nums text-[17px] tracking-[0.04em] text-bright">{row.period}</div>
-                        </td>
-                        <td className="px-4 py-2 font-mono text-[14px] text-body text-right whitespace-nowrap border-r border-wire/30">
-                          {row.trades}
-                        </td>
-                        <td className="px-4 py-2 font-mono text-[14px] text-dim text-right whitespace-nowrap border-r border-wire/30">
-                          {formatNum(row.volume)}
-                        </td>
-                        <td className="px-4 py-2 font-mono text-[14px] border-r border-wire/30 align-middle">
-                          <div className={`flex items-center justify-end font-medium whitespace-nowrap ${isWin ? 'text-green-neon' : 'text-red-neon'}`}>
-                            <span className="w-[75px] text-right">{isWin ? '+' : ''}{formatNum(row.netProfit)}</span>
-                            <span className="mx-2 text-dim font-normal">/</span>
-                            <span className="w-[65px] text-right">{pct >= 0 ? '+' : ''}{formatNum(pct)}%</span>
+                        {/* MOBILE VIEW LIST - COMPACT ROW BASED */}
+                        <div className="block md:hidden bg-ink-2/30 border border-wire/60 rounded-2xl overflow-hidden mb-8 shadow-sm w-full">
+                          <div className="grid grid-cols-[1fr_auto] gap-2 px-4 py-2.5 bg-ink-3/50 font-mono text-[10px] text-muted tracking-wider uppercase border-b border-wire/40">
+                            <div>{t('period')}</div>
+                            <div className="text-right px-2">{t('netPL')}</div>
                           </div>
-                        </td>
-                        <td className="px-4 py-2 font-mono text-[14px] text-body text-right whitespace-nowrap border-r border-wire/30">
-                          {formatNum(winRate)}%
-                        </td>
-                        <td className="px-4 py-2 font-mono text-[14px] border-r border-wire/30 align-middle">
-                          <div className="flex items-center justify-end whitespace-nowrap">
-                            <span className="w-[75px] text-right text-green-neon">+{formatNum(row.grossProfit)}</span>
-                            <span className="mx-2 text-dim font-normal">/</span>
-                            <span className="w-[75px] text-right text-red-neon">-{formatNum(row.grossLoss)}</span>
+                          <div className="divide-y divide-wire/10 w-full">
+                            {aggregatedTableData.map((row) => {
+                              const isWin = row.netProfit >= 0;
+                              const winRate = row.trades > 0 ? (row.wins / row.trades) * 100 : 0;
+                              const pct = row.startingBalance !== 0 ? (row.netProfit / row.startingBalance) * 100 : 0;
+                              return (
+                                <div key={row.id} className="grid grid-cols-[1fr_auto] gap-2 px-4 py-3 items-center hover:bg-ink-3/20 transition-colors relative group">
+                                  {/* Left Accent */}
+                                  <div className={`absolute left-0 top-1 bottom-1 w-1 rounded-r-full transition-opacity ${isWin ? 'bg-green-neon shadow-[0_0_8px_var(--color-green-neon)]' : 'bg-red-neon shadow-[0_0_8px_var(--color-red-neon)]'}`} />
+                                  
+                                  <div className="flex flex-col min-w-0 pl-1">
+                                    <div className="flex items-center gap-0 mb-1.5 flex-nowrap">
+                                      <span className="font-mono text-[14px] text-bright font-medium tabular-nums tracking-tight truncate leading-tight min-w-[115px] w-[115px] shrink-0">{row.periodMobile}</span>
+                                      {!row.isSingle && (
+                                        <span className="font-mono text-[10px] text-dim bg-ink-4/50 px-1.5 py-[1px] rounded border border-wire/40 shrink-0">
+                                          {t('trades')} {row.trades}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {row.isSingle ? (
+                                      <div className="flex items-center gap-2 font-mono text-[11px] whitespace-nowrap mt-0.5">
+                                        <span className={Number(row.dealType) === 0 ? 'text-blue-400' : 'text-orange-400'}>
+                                          {Number(row.dealType) === 0 ? 'BUY' : 'SELL'} {row.symbol}
+                                        </span>
+                                        <span className="opacity-20 text-muted">|</span>
+                                        <span className="text-muted">Lot: {row.volume}</span>
+                                      </div>
+                                    ) : (
+                                      <div className="flex flex-nowrap items-center gap-0 font-mono text-[11px] mt-0.5 whitespace-nowrap overflow-x-visible">
+                                        <div className="flex items-center justify-start gap-1.5 min-w-[108px] w-[108px] shrink-0">
+                                          <span className="text-muted shrink-0">{t('winRate')}</span>
+                                          <span className={`min-w-[46px] text-right tabular-nums shrink-0 ${isWin ? 'text-green-neon' : 'text-red-neon'}`}>
+                                            {formatNum(winRate)}%
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 shrink-0 pl-1">
+                                          <span className="text-muted">{t('balance')}</span>
+                                          <span className="text-cyan-glow/80 tabular-nums">${formatNum(row.balance)}</span>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                  
+                                  <div className="flex flex-col items-end min-w-[85px] pl-2 justify-center">
+                                    <div className={`font-mono font-bold text-[14px] leading-none mb-1.5 ${isWin ? 'text-green-neon' : 'text-red-neon'}`}>
+                                      {isWin ? '+' : ''}{formatNum(row.netProfit)}
+                                    </div>
+                                    <div className={`font-mono text-[10px] leading-none ${isWin ? 'text-green-neon/70' : 'text-red-neon/70'}`}>
+                                      {pct >= 0 ? '+' : ''}{formatNum(pct)}%
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
-                        </td>
-                        <td className={`px-4 py-2 font-mono text-[14px] text-right whitespace-nowrap border-r border-wire/30 ${row.depositsWithdrawals >= 0 ? (row.depositsWithdrawals > 0 ? 'text-blue-400' : 'text-dim') : 'text-red-neon'}`}>
-                          {row.depositsWithdrawals > 0 ? '+' : ''}{formatNum(row.depositsWithdrawals)}
-                        </td>
-                        <td className={`pr-5 pl-4 py-2 font-mono text-[14px] text-right whitespace-nowrap ${Number(formatNum(row.balance)) >= 0 ? "text-cyan-glow" : "text-red-neon"}`}>
-                          ${formatNum(row.balance)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {aggregatedTableData.length > 0 && (
-                    <tr className="border-t-2 border-wire bg-[rgba(0,200,224,0.03)] font-medium">
-                      <>
-                        <td className="px-5 py-3 text-left border-r border-wire/30 font-display text-[17px] tracking-[0.04em] text-bright">
-                          {t('total')}
-                        </td>
-                        <td className="px-4 py-3 font-mono text-[14px] text-body text-right whitespace-nowrap border-r border-wire/30">
-                          {stats.totalTrades}
-                        </td>
-                        <td className="px-4 py-3 font-mono text-[14px] text-body text-right whitespace-nowrap border-r border-wire/30">
-                          {formatNum(stats.totalVolume)}
-                        </td>
-                        <td className="px-4 py-3 font-mono text-[14px] border-r border-wire/30 align-middle">
-                          <div className={`flex items-center justify-end font-medium whitespace-nowrap ${stats.totalProfit >= 0 ? 'text-green-neon' : 'text-red-neon'}`}>
-                            <span className="w-[75px] text-right">{stats.totalProfit >= 0 ? '+' : ''}{formatNum(stats.totalProfit)}</span>
-                            <span className="mx-2 text-dim font-normal">/</span>
-                            <span className="w-[65px] text-right">{aggregatedRowPctTotal >= 0 ? '+' : ''}{formatNum(aggregatedRowPctTotal)}%</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 font-mono text-[14px] text-body text-right whitespace-nowrap border-r border-wire/30">
-                          {formatNum(stats.winRate)}%
-                        </td>
-                        <td className="px-4 py-3 font-mono text-[14px] border-r border-wire/30 align-middle">
-                          <div className="flex items-center justify-end whitespace-nowrap">
-                            <span className="w-[75px] text-right text-green-neon">+{formatNum(stats.grossProfit)}</span>
-                            <span className="mx-2 text-dim font-normal">/</span>
-                            <span className="w-[75px] text-right text-red-neon">-{formatNum(stats.grossLoss)}</span>
-                          </div>
-                        </td>
-                        <td className={`px-4 py-3 font-mono text-[14px] text-right whitespace-nowrap border-r border-wire/30 ${stats.totalInOut >= 0 ? (stats.totalInOut > 0 ? 'text-blue-400' : 'text-dim') : 'text-red-neon'}`}>
-                          {stats.totalInOut > 0 ? '+' : ''}{formatNum(stats.totalInOut)}
-                        </td>
-                        <td className="pr-5 pl-4 py-3 font-mono text-[14px] text-right whitespace-nowrap">
-                        </td>
-                      </>
-                    </tr>
-                  )}
-                  {aggregatedTableData.length === 0 && (
-                    <tr>
-                      <td colSpan={8} className="py-[60px] px-4 text-center">
-                        <div className="font-mono text-[13px] tracking-[0.1em] text-muted mt-2.5">{t('noTradeRecord')}</div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            </div>
-            ) : (
-              <div className="mt-2 flex flex-col gap-6 animate-in fade-in zoom-in-95 duration-500 ease-out">
-                <div className="flex flex-col gap-6 p-6 border border-wire/60 rounded-2xl bg-ink-2/80 backdrop-blur-md shadow-[0_8px_30px_rgb(0,0,0,0.12)] relative overflow-hidden group">
+                          {aggregatedTableData.length === 0 && (
+                            <div className="text-center py-14 font-mono text-[13px] text-muted bg-ink-2/30">{t('noTradeRecord')}</div>
+                          )}
+                        </div>
+
+                        <div className="hidden md:block overflow-auto max-h-[70vh] md:max-h-none md:overflow-visible border border-wire/60 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] bg-ink-2/80 backdrop-blur-md w-full">
+                          <table className="w-full border-collapse min-w-[700px] relative">
+                            <thead className="sticky top-0 z-20">
+                              <tr className="bg-ink-3/95 backdrop-blur-sm border-b border-wire shadow-sm">
+                                <th className="font-mono text-[11px] tracking-[0.14em] text-dim pl-5 pr-4 py-3 text-left font-normal border-r border-wire/30 uppercase whitespace-nowrap">{t('period')}</th>
+                                <th className="font-mono text-[11px] tracking-[0.14em] text-dim px-4 py-3 text-right font-normal border-r border-wire/30 uppercase whitespace-nowrap">{t('trades')}</th>
+                                <th className="font-mono text-[11px] tracking-[0.14em] text-dim px-4 py-3 text-right font-normal border-r border-wire/30 uppercase whitespace-nowrap">{t('volume')}</th>
+                                <th className="font-mono text-[11px] tracking-[0.14em] text-dim px-4 py-3 text-right font-normal border-r border-wire/30 uppercase whitespace-nowrap">{t('netPLPct')}</th>
+                                <th className="font-mono text-[11px] tracking-[0.14em] text-dim px-4 py-3 text-right font-normal border-r border-wire/30 uppercase whitespace-nowrap">{t('winRate')}</th>
+                                <th className="font-mono text-[11px] tracking-[0.14em] text-dim px-4 py-3 text-right font-normal border-r border-wire/30 uppercase whitespace-nowrap">{t('profitVal')}</th>
+                                <th className="font-mono text-[11px] tracking-[0.14em] text-dim px-4 py-3 text-right font-normal border-r border-wire/30 uppercase whitespace-nowrap">{t('depositWithdrawal')}</th>
+                                <th className="font-mono text-[11px] tracking-[0.14em] text-dim px-4 py-3 text-right font-normal uppercase pr-5 whitespace-nowrap">{t('balance')}</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {aggregatedTableData.map((row) => {
+                                const isWin = row.netProfit >= 0;
+                                const winRate = row.trades > 0 ? (row.wins / row.trades) * 100 : 0;
+                                const pct = row.startingBalance !== 0 ? (row.netProfit / row.startingBalance) * 100 : 0;
+
+                                return (
+                                  <tr 
+                                    key={row.id} 
+                                    className="border-b border-wire/60 transition-colors hover:bg-[rgba(0,200,224,0.025)] last:border-b-0 relative group"
+                                  >
+                                    <td className="relative px-5 py-2 text-left border-r border-wire/30">
+                                      <div className={`absolute left-0 top-0 bottom-0 w-[3px] opacity-0 group-hover:opacity-100 transition-opacity ${isWin ? 'bg-green-neon' : 'bg-red-neon'}`} />
+                                      <div className="font-display tabular-nums text-[13px] sm:text-[15px] tracking-[0.04em] text-bright max-w-[120px] truncate">{row.period}</div>
+                                    </td>
+                                    <td className="px-4 py-2 font-mono text-[14px] text-body text-right whitespace-nowrap border-r border-wire/30">
+                                      {row.trades}
+                                    </td>
+                                    <td className="px-4 py-2 font-mono text-[14px] text-dim text-right whitespace-nowrap border-r border-wire/30">
+                                      {formatNum(row.volume)}
+                                    </td>
+                                    <td className="px-4 py-2 font-mono text-[14px] border-r border-wire/30 align-middle">
+                                      <div className={`flex items-center justify-end font-medium whitespace-nowrap ${isWin ? 'text-green-neon' : 'text-red-neon'}`}>
+                                        <span className="w-[75px] text-right">{isWin ? '+' : ''}{formatNum(row.netProfit)}</span>
+                                        <span className="mx-2 text-dim font-normal">/</span>
+                                        <span className="w-[65px] text-right">{pct >= 0 ? '+' : ''}{formatNum(pct)}%</span>
+                                      </div>
+                                    </td>
+                                    <td className="px-4 py-2 font-mono text-[14px] text-body text-right whitespace-nowrap border-r border-wire/30">
+                                      {formatNum(winRate)}%
+                                    </td>
+                                    <td className="px-4 py-2 font-mono text-[14px] border-r border-wire/30 align-middle">
+                                      <div className="flex items-center justify-end whitespace-nowrap">
+                                        <span className="w-[75px] text-right text-green-neon">+{formatNum(row.grossProfit)}</span>
+                                        <span className="mx-2 text-dim font-normal">/</span>
+                                        <span className="w-[75px] text-right text-red-neon">-{formatNum(row.grossLoss)}</span>
+                                      </div>
+                                    </td>
+                                    <td className={`px-4 py-2 font-mono text-[14px] text-right whitespace-nowrap border-r border-wire/30 ${row.depositsWithdrawals >= 0 ? (row.depositsWithdrawals > 0 ? 'text-blue-400' : 'text-dim') : 'text-red-neon'}`}>
+                                      {row.depositsWithdrawals > 0 ? '+' : ''}{formatNum(row.depositsWithdrawals)}
+                                    </td>
+                                    <td className={`pr-5 pl-4 py-2 font-mono text-[14px] text-right whitespace-nowrap ${Number(formatNum(row.balance)) >= 0 ? "text-cyan-glow" : "text-red-neon"}`}>
+                                      ${formatNum(row.balance)}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                              {aggregatedTableData.length > 0 && (
+                                <tr className="border-t-2 border-wire bg-[rgba(0,200,224,0.03)] font-medium">
+                                  <>
+                                    <td className="px-5 py-3 text-left border-r border-wire/30 font-display text-[15px] tracking-[0.04em] text-bright">
+                                      {t('total')}
+                                    </td>
+                                    <td className="px-4 py-3 font-mono text-[14px] text-body text-right whitespace-nowrap border-r border-wire/30">
+                                      {stats.totalTrades}
+                                    </td>
+                                    <td className="px-4 py-3 font-mono text-[14px] text-body text-right whitespace-nowrap border-r border-wire/30">
+                                      {formatNum(stats.totalVolume)}
+                                    </td>
+                                    <td className="px-4 py-3 font-mono text-[14px] border-r border-wire/30 align-middle">
+                                      <div className={`flex items-center justify-end font-medium whitespace-nowrap ${stats.totalProfit >= 0 ? 'text-green-neon' : 'text-red-neon'}`}>
+                                        <span className="w-[75px] text-right">{stats.totalProfit >= 0 ? '+' : ''}{formatNum(stats.totalProfit)}</span>
+                                        <span className="mx-2 text-dim font-normal">/</span>
+                                        <span className="w-[65px] text-right">{aggregatedRowPctTotal >= 0 ? '+' : ''}{formatNum(aggregatedRowPctTotal)}%</span>
+                                      </div>
+                                    </td>
+                                    <td className="px-4 py-3 font-mono text-[14px] text-body text-right whitespace-nowrap border-r border-wire/30">
+                                      {formatNum(stats.winRate)}%
+                                    </td>
+                                    <td className="px-4 py-3 font-mono text-[14px] border-r border-wire/30 align-middle">
+                                      <div className="flex items-center justify-end whitespace-nowrap">
+                                        <span className="w-[75px] text-right text-green-neon">+{formatNum(stats.grossProfit)}</span>
+                                        <span className="mx-2 text-dim font-normal">/</span>
+                                        <span className="w-[75px] text-right text-red-neon">-{formatNum(stats.grossLoss)}</span>
+                                      </div>
+                                    </td>
+                                    <td className={`px-4 py-3 font-mono text-[14px] text-right whitespace-nowrap border-r border-wire/30 ${stats.totalInOut >= 0 ? (stats.totalInOut > 0 ? 'text-blue-400' : 'text-dim') : 'text-red-neon'}`}>
+                                      {stats.totalInOut > 0 ? '+' : ''}{formatNum(stats.totalInOut)}
+                                    </td>
+                                    <td className="pr-5 pl-4 py-3 font-mono text-[14px] text-right whitespace-nowrap">
+                                    </td>
+                                  </>
+                                </tr>
+                              )}
+                              {aggregatedTableData.length === 0 && (
+                                <tr>
+                                  <td colSpan={8} className="py-[60px] px-4 text-center">
+                                    <div className="font-mono text-[13px] tracking-[0.1em] text-muted mt-2.5">{t('noTradeRecord')}</div>
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
+                </div>
+        </motion.div>
+          ) : (
+                <motion.div
+                  key="simulation"
+                  initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                  transition={{ duration: 0.3, ease: 'easeOut' }}
+                  className="mt-2 flex flex-col gap-6"
+                >
+                <div className="flex flex-col gap-4 sm:gap-6 p-4 sm:p-6 border border-wire/60 rounded-2xl bg-ink-2/80 backdrop-blur-md shadow-[0_8px_30px_rgb(0,0,0,0.12)] relative overflow-hidden group">
                   <div className="absolute inset-0 bg-gradient-to-r from-green-neon/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                   
-                  <div className="relative z-10 font-mono text-[13px] text-dim">{t('copySimulationDesc')}</div>
+                  <div className="relative z-10 font-mono text-[11px] sm:text-[13px] text-dim">{t('copySimulationDesc')}</div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 relative z-10">
                     <div className="flex flex-col">
                       <label className="block font-mono text-[12px] tracking-[0.1em] text-dim mb-3 flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -1375,37 +1785,37 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 relative z-10 mt-2">
-                    <div className="flex flex-col border border-wire/60 bg-ink-3/50 rounded-xl p-4">
-                      <div className="font-mono text-[12px] tracking-[0.1em] text-dim mb-2">{t('expectedProfit')}</div>
-                      <div className={`font-display text-[24px] tracking-wide mb-1 ${(simulationResults.total - (simAmount || 1)) >= 0 ? 'text-green-neon' : 'text-red-neon'}`}>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 relative z-10 mt-2">
+                    <div className="flex flex-col border border-wire/60 bg-ink-3/50 rounded-xl p-3 sm:p-4">
+                      <div className="font-mono text-[11px] sm:text-[12px] tracking-[0.1em] text-dim mb-1 sm:mb-2">{t('expectedProfit')}</div>
+                      <div className={`font-display text-[18px] sm:text-[24px] tracking-wide mb-1 ${(simulationResults.total - (simAmount || 1)) >= 0 ? 'text-green-neon' : 'text-red-neon'}`}>
                         {(simulationResults.total - (simAmount || 1)) > 0 ? '+' : ''}{formatNum(simulationResults.total - (simAmount || 0))}
                       </div>
-                      <div className="font-mono text-[11px] text-muted">{simCompound ? t('baseCompoundTotal') : t('noCompoundTotal')} {simMultiplier.toFixed(2)}</div>
+                      <div className="font-mono text-[10px] sm:text-[11px] text-muted line-clamp-1 truncate">{simCompound ? t('baseCompoundTotal') : t('noCompoundTotal')} {simMultiplier.toFixed(2)}</div>
                     </div>
 
-                    <div className="flex flex-col border border-wire/60 bg-ink-3/50 rounded-xl p-4">
-                      <div className="font-mono text-[12px] tracking-[0.1em] text-dim mb-2">{t('expectedROI')}</div>
-                      <div className={`font-display text-[24px] tracking-wide mb-1 ${(simulationResults.total / (simAmount || 1)) > 1 ? 'text-green-neon' : 'text-red-neon'}`}>
+                    <div className="flex flex-col border border-wire/60 bg-ink-3/50 rounded-xl p-3 sm:p-4">
+                      <div className="font-mono text-[11px] sm:text-[12px] tracking-[0.1em] text-dim mb-1 sm:mb-2">{t('expectedROI')}</div>
+                      <div className={`font-display text-[18px] sm:text-[24px] tracking-wide mb-1 ${(simulationResults.total / (simAmount || 1)) > 1 ? 'text-green-neon' : 'text-red-neon'}`}>
                         {(simulationResults.total / (simAmount || 1) * 100 - 100) > 0 ? '+' : ''}{((simulationResults.total / (simAmount || 1) * 100) - 100).toFixed(2)}%
                       </div>
-                      <div className="font-mono text-[11px] text-muted">{t('baseCapitalTotal')}</div>
+                      <div className="font-mono text-[10px] sm:text-[11px] text-muted line-clamp-1 truncate">{t('baseCapitalTotal')}</div>
                     </div>
 
-                    <div className="flex flex-col border border-wire/60 bg-ink-3/50 rounded-xl p-4">
-                      <div className="font-mono text-[12px] tracking-[0.1em] text-dim mb-2">{t('estimatedMaxDD')}</div>
-                      <div className="font-display text-[24px] tracking-wide mb-1 text-red-neon">
+                    <div className="flex flex-col border border-wire/60 bg-ink-3/50 rounded-xl p-3 sm:p-4">
+                      <div className="font-mono text-[11px] sm:text-[12px] tracking-[0.1em] text-dim mb-1 sm:mb-2">{t('estimatedMaxDD')}</div>
+                      <div className="font-display text-[18px] sm:text-[24px] tracking-wide mb-1 text-red-neon">
                         -{simMetrics.estMaxDrawdown.toFixed(2)}%
                       </div>
-                      <div className="font-mono text-[11px] text-muted">{t('baseDrawdownTotal')} {simMultiplier.toFixed(2)}</div>
+                      <div className="font-mono text-[10px] sm:text-[11px] text-muted line-clamp-1 truncate">{t('baseDrawdownTotal')} {simMultiplier.toFixed(2)}</div>
                     </div>
 
-                    <div className="flex flex-col border border-wire/60 bg-ink-3/50 rounded-xl p-4">
-                      <div className="font-mono text-[12px] tracking-[0.1em] text-dim mb-2">{t('recMaxMultiplier')}</div>
-                      <div className="font-display text-[24px] tracking-wide mb-1 text-yellow-400">
+                    <div className="flex flex-col border border-wire/60 bg-ink-3/50 rounded-xl p-3 sm:p-4">
+                      <div className="font-mono text-[11px] sm:text-[12px] tracking-[0.1em] text-dim mb-1 sm:mb-2">{t('recMaxMultiplier')}</div>
+                      <div className="font-display text-[18px] sm:text-[24px] tracking-wide mb-1 text-yellow-400">
                         {simMetrics.recMaxMultiplier.toFixed(2)}x
                       </div>
-                      <div className="font-mono text-[11px] text-muted">{t('basedOn')}</div>
+                      <div className="font-mono text-[10px] sm:text-[11px] text-muted line-clamp-1 truncate">{t('basedOn')}</div>
                     </div>
                   </div>
 
@@ -1471,7 +1881,50 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="overflow-auto max-h-[70vh] md:max-h-none md:overflow-visible border border-wire/60 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] bg-ink-2/80 backdrop-blur-md">
+                {/* MOBILE VIEW LIST - COMPACT */}
+                <div className="block md:hidden bg-ink-2/30 border border-wire/60 rounded-2xl overflow-hidden shadow-sm">
+                  <div className="grid grid-cols-[1fr_auto_auto] gap-2 px-4 py-2.5 bg-ink-3/50 font-mono text-[10px] text-muted tracking-wider uppercase border-b border-wire/40">
+                    <div>{t('date')}</div>
+                    <div className="text-right">{t('simProfit')}</div>
+                    <div className="text-right pl-2 w-[85px]">{t('simTotal')}</div>
+                  </div>
+                  <div className="divide-y divide-wire/10">
+                    {simulationResults.rows.map((row: any, i: number) => {
+                      const isWin = row.profit >= 0;
+                      return (
+                        <div key={i} className="grid grid-cols-[1fr_auto_auto] gap-2 px-4 py-3 items-center hover:bg-ink-3/20 transition-colors relative group">
+                          {/* Left Accent */}
+                          <div className={`absolute left-0 top-1 bottom-1 w-1 rounded-r-full transition-opacity ${isWin ? 'bg-green-neon shadow-[0_0_8px_var(--color-green-neon)]' : 'bg-red-neon shadow-[0_0_8px_var(--color-red-neon)]'}`} />
+                          
+                          <div className="flex flex-col min-w-0 pl-1">
+                            <div className="font-mono text-[14px] text-bright font-medium tabular-nums tracking-tight truncate leading-tight mb-0.5">
+                              {row.date}
+                            </div>
+                            <div className="flex items-center gap-1.5 font-mono text-[11px] whitespace-nowrap mt-0.5">
+                              <span className="text-muted">{t('dailyROI')}</span>
+                              <span className={isWin ? 'text-green-neon' : 'text-red-neon'}>
+                                {row.pct >= 0 ? '+' : ''}{formatNum(row.pct, 2)}%
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className={`font-mono font-bold text-[14px] text-right min-w-[50px] ${isWin ? 'text-green-neon' : 'text-red-neon'}`}>
+                            {isWin ? '+' : ''}${formatNum(row.profit, 2)}
+                          </div>
+                          
+                          <div className={`font-mono text-[13px] text-right pl-2 w-[85px] ${row.balance >= (simAmount || 0) ? 'text-cyan-glow/90' : 'text-red-neon/90'}`}>
+                            ${formatNum(row.balance, 2)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {simulationResults.rows.length === 0 && (
+                    <div className="text-center py-14 font-mono text-[13px] text-muted bg-ink-2/30">{t('noSimData')}</div>
+                  )}
+                </div>
+
+                <div className="hidden md:block overflow-auto max-h-[70vh] md:max-h-none md:overflow-visible border border-wire/60 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] bg-ink-2/80 backdrop-blur-md">
                   <table className="w-full border-collapse min-w-[500px] relative">
                     <thead className="sticky top-0 z-20">
                       <tr className="bg-ink-3/95 backdrop-blur-sm border-b border-wire shadow-sm">
@@ -1509,59 +1962,24 @@ export default function App() {
                     </tbody>
                   </table>
                 </div>
-              </div>
-            )}
-          </>
+              </motion.div>
+              )}
+            </AnimatePresence>
+            </motion.div>
+          </AnimatePresence>
         )}
 
-        <footer className="mt-12 pt-5 border-t border-wire flex justify-between items-center flex-wrap gap-2 font-mono text-[12px] text-dim tracking-[0.08em] uppercase">
-          <span>Owned by Greedx signa</span>
-          <div className="flex items-center gap-6">
-            {settings.links?.community ? <a href={settings.links.community} target="_blank" rel="noreferrer" className="hover:text-cyan-glow transition-colors border-b border-transparent hover:border-cyan-glow pb-0.5">{t('community')}</a> : <span>{t('community')}</span>}
-            {settings.links?.broker ? <a href={settings.links.broker} target="_blank" rel="noreferrer" className="hover:text-cyan-glow transition-colors border-b border-transparent hover:border-cyan-glow pb-0.5">{t('broker')}</a> : <span>{t('broker')}</span>}
-            {settings.links?.tutorial ? <a href={settings.links.tutorial} target="_blank" rel="noreferrer" className="hover:text-cyan-glow transition-colors border-b border-transparent hover:border-cyan-glow pb-0.5">{t('tutorial')}</a> : <span>{t('tutorial')}</span>}
-            {settings.links?.contact ? <a href={settings.links.contact} target="_blank" rel="noreferrer" className="hover:text-cyan-glow transition-colors border-b border-transparent hover:border-cyan-glow pb-0.5">{t('contact')}</a> : <span>{t('contact')}</span>}
+        <footer className="mt-8 md:mt-12 pt-6 pb-4 border-t border-wire flex flex-col md:flex-row justify-between items-center gap-4 font-mono text-[11px] md:text-[12px] text-muted tracking-[0.08em] uppercase">
+          <span className="order-2 md:order-1">{t('lastSync') !== 'Last Sync' ? '© 2026 AION CAPITAL 保留所有權利' : '© 2026 AION CAPITAL. All Rights Reserved.'}</span>
+          <div className="flex flex-wrap justify-center items-center gap-4 sm:gap-6 order-1 md:order-2">
+            {settings.links?.community ? <a href={settings.links.community} target="_blank" rel="noreferrer" className="hover:text-cyan-glow transition-all border-b border-transparent hover:border-cyan-glow pb-0.5">{t('community')}</a> : <span className="opacity-40">{t('community')}</span>}
+            {settings.links?.broker ? <a href={settings.links.broker} target="_blank" rel="noreferrer" className="hover:text-cyan-glow transition-all border-b border-transparent hover:border-cyan-glow pb-0.5">{t('broker')}</a> : <span className="opacity-40">{t('broker')}</span>}
+            {settings.links?.tutorial ? <a href={settings.links.tutorial} target="_blank" rel="noreferrer" className="hover:text-cyan-glow transition-all border-b border-transparent hover:border-cyan-glow pb-0.5">{t('tutorial')}</a> : <span className="opacity-40">{t('tutorial')}</span>}
+            {settings.links?.contact ? <a href={settings.links.contact} target="_blank" rel="noreferrer" className="hover:text-cyan-glow transition-all border-b border-transparent hover:border-cyan-glow pb-0.5">{t('contact')}</a> : <span className="opacity-40">{t('contact')}</span>}
           </div>
         </footer>
 
-        {/* LOGIN MODAL */}
-        {showLoginModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-            <div className="bg-ink-2 border border-wire rounded-xl shadow-xl w-full max-w-[400px] p-5 sm:p-8 relative">
-              <button 
-                onClick={() => setShowLoginModal(false)}
-                className="absolute top-4 right-4 text-dim hover:text-bright"
-              >✕</button>
-              <h2 className="font-display text-xl text-bright mb-6 tracking-wide">{t('adminLogin')}</h2>
-              <form onSubmit={handleLogin} className="flex flex-col gap-4">
-                <div>
-                  <label className="block font-mono text-[12px] tracking-[0.1em] text-muted mb-2">Email</label>
-                  <input 
-                    type="email" 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-ink-3 border border-wire rounded-lg px-3 py-2 font-mono text-[14px] text-body focus:outline-none focus:ring-2 focus:ring-cyan-glow/30"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block font-mono text-[12px] tracking-[0.1em] text-muted mb-2">Password</label>
-                  <input 
-                    type="password" 
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-ink-3 border border-wire rounded-lg px-3 py-2 font-mono text-[14px] text-body focus:outline-none focus:ring-2 focus:ring-cyan-glow/30"
-                    required
-                  />
-                </div>
-                {loginError && <div className="text-red-neon text-xs font-sans mt-1">{loginError}</div>}
-                <button type="submit" className="mt-2 w-full py-2.5 rounded-lg bg-cyan-glow text-white font-mono text-[14px] tracking-wide hover:opacity-90 transition-opacity">
-                  {t('login')}
-                </button>
-              </form>
-            </div>
-          </div>
-        )}
+        {/* LOGIN MODAL REMOVED FOR TEMPORARY PUBLIC ACCESS */}
 
         {/* SETTINGS MODAL */}
         {showSettingsModal && (
@@ -1573,16 +1991,6 @@ export default function App() {
               >✕</button>
               <h2 className="font-display text-xl text-bright mb-6 tracking-wide flex items-center justify-between shrink-0">
                 <div>{t('settings')}</div>
-                <button 
-                  onClick={() => {
-                    signOut(auth);
-                    setShowSettingsModal(false);
-                    setUser(null);
-                  }}
-                  className="font-mono text-[12px] text-red-neon border border-red-neon/30 px-2 py-1 hover:bg-red-neon/10 transition-colors"
-                >
-                  {t('logout')}
-                </button>
               </h2>
               <div className="flex flex-col gap-4 overflow-y-auto pr-2 pb-2 flex-1">
                 <div>
@@ -1740,7 +2148,7 @@ function KPIBox({
   label, value, sub, bg, accent, isPositive, colorClass 
 }: { 
   label: string, 
-  value: string, 
+  value: React.ReactNode, 
   sub: string, 
   bg: string, 
   accent: string, 
@@ -1751,16 +2159,19 @@ function KPIBox({
   if (isPositive === true) valColor = 'text-green-neon';
   if (isPositive === false) valColor = 'text-red-neon';
 
+  // Use a smaller baseline font and clamp so it naturally fits, avoiding truncations on long values.
+  const isSuperLong = typeof value === 'string' && value.length > 10;
+
   return (
-    <div className="bg-ink-2/80 backdrop-blur-md p-4 sm:p-5 relative overflow-hidden transition-colors hover:bg-ink-3 rounded-2xl border border-wire/60 shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
+    <div className="bg-ink-2/80 backdrop-blur-md p-3.5 sm:p-5 relative overflow-hidden transition-colors hover:bg-ink-3 rounded-2xl border border-wire/60 shadow-[0_8px_30px_rgb(0,0,0,0.06)] flex flex-col justify-center min-h-[90px] sm:min-h-[110px]">
       <div className={`absolute top-0 left-0 right-0 h-[3px] ${accent}`} />
-      <div className="font-mono text-[11px] sm:text-[12px] tracking-[0.05em] text-dim uppercase mb-1 sm:mb-2">
+      <div className="font-mono text-[10px] sm:text-[12px] tracking-[0.05em] text-dim uppercase mb-1 sm:mb-2 truncate z-10 relative">
         {label}
       </div>
-      <div className={`font-display font-semibold tabular-nums text-[24px] sm:text-[32px] leading-tight tracking-tight ${valColor}`}>
+      <div className={`font-display font-semibold tabular-nums leading-tight tracking-tight ${valColor} break-all z-10 relative ${isSuperLong ? 'text-[15px] xs:text-[18px] sm:text-[22px] lg:text-[24px]' : 'text-[18px] xs:text-[22px] sm:text-[26px] lg:text-[28px]'}`}>
         {value}
       </div>
-      <div className="mt-1 font-sans tabular-nums text-[12px] sm:text-[13px] text-dim">
+      <div className="mt-1.5 font-sans tabular-nums text-[10px] sm:text-[12px] text-dim break-all z-10 relative leading-tight">
         {sub}
       </div>
       <div className="absolute -right-2 -bottom-4 font-display font-bold text-[60px] sm:text-[80px] leading-none tracking-[0.02em] text-black/[0.02] pointer-events-none z-0">

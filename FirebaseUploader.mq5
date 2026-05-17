@@ -6,11 +6,11 @@
 #property link      ""
 #property version   "1.01"
 
-input string FirebaseProjectId = ""; // Firebase Project ID
-input string DatabaseId = "(default)"; // Firestore Database ID (often "(default)")
-input string WebApiKey = "";         // Firebase Web API Key
-input string UserEmail = "";         // Firebase User Email
-input string UserPassword = "";      // Firebase User Password
+#include <Generic\HashMap.mqh>
+
+input string FirebaseProjectId = "knowledgeable-cinema-nrwfn"; // Firebase Project ID
+input string DatabaseId = "ai-studio-2d3e08bf-8948-4861-b08b-89d8c8b49d07"; // Firestore Database ID (often "(default)")
+input string WebApiKey = "AIzaSyBWYePGj3NRpvbT9GaP3DZNI3R_ygSuq-A";         // Firebase Web API Key
 input int UploadIntervalSeconds = 60; // Upload Check Interval (seconds)
 
 string idToken = "";
@@ -23,6 +23,7 @@ string RECORD_FILE = "FirebaseUploader_Record.txt";
 double g_peak_equity = 0;
 double g_max_drawdown_val = 0;
 double g_max_drawdown_pct = 0;
+double g_avg_hold_seconds = 0;
 bool g_stats_needs_upload = true;
 
 //+------------------------------------------------------------------+
@@ -30,18 +31,10 @@ bool g_stats_needs_upload = true;
 //+------------------------------------------------------------------+
 int OnInit()
   {
-   if(FirebaseProjectId == "" || WebApiKey == "" || UserEmail == "" || UserPassword == "") {
+   if(FirebaseProjectId == "" || WebApiKey == "") {
       Print("Please fill in all Firebase inputs.");
       return INIT_PARAMETERS_INCORRECT;
    }
-
-   // 1. Authenticate with Firebase Email/Password
-   if(!Authenticate()) {
-      Print("Authentication failed.");
-      return INIT_FAILED;
-   }
-   
-   Print("Authenticated successfully! UID: ", localId);
 
    // Create Force Reupload Button
    ObjectCreate(0, "BtnForceUpload", OBJ_BUTTON, 0, 0, 0);
@@ -219,47 +212,6 @@ void SyncDeals()
   }
 
 //+------------------------------------------------------------------+
-//| Authenticate via Firebase Auth REST API                          |
-//+------------------------------------------------------------------+
-bool Authenticate()
-  {
-   string url = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=" + WebApiKey;
-   string headers = "Content-Type: application/json\r\n";
-   string payload = "{\"email\":\"" + UserEmail + "\",\"password\":\"" + UserPassword + "\",\"returnSecureToken\":true}";
-   
-   char postData[];
-   char result[];
-   string resultHeaders;
-   StringToCharArray(payload, postData, 0, StringLen(payload), CP_UTF8);
-   
-   int res = WebRequest("POST", url, headers, 10000, postData, result, resultHeaders);
-   
-   if(res == 200) {
-      string jsonRes = CharArrayToString(result, 0, WHOLE_ARRAY, CP_UTF8);
-      
-      // Simple string parsing to extract idToken and localId (Since MQL5 doesn't have native JSON easily)
-      int tokenIdx = StringFind(jsonRes, "\"idToken\": \"");
-      if(tokenIdx != -1) {
-         tokenIdx += 12;
-         int tokenEnd = StringFind(jsonRes, "\"", tokenIdx);
-         idToken = StringSubstr(jsonRes, tokenIdx, tokenEnd - tokenIdx);
-      }
-      
-      int uidIdx = StringFind(jsonRes, "\"localId\": \"");
-      if(uidIdx != -1) {
-         uidIdx += 12;
-         int uidEnd = StringFind(jsonRes, "\"", uidIdx);
-         localId = StringSubstr(jsonRes, uidIdx, uidEnd - uidIdx);
-      }
-      return (idToken != "" && localId != "");
-   } else {
-      Print("WebRequest failed, code: ", res, " error: ", GetLastError());
-      Print("Response: ", CharArrayToString(result));
-      return false;
-   }
-  }
-
-//+------------------------------------------------------------------+
 //| Upload a single deal to Firestore                                |
 //+------------------------------------------------------------------+
 bool UploadDeal(ulong ticket)
@@ -280,8 +232,8 @@ bool UploadDeal(ulong ticket)
    long account = AccountInfoInteger(ACCOUNT_LOGIN);
    string docId = IntegerToString(account) + "_" + IntegerToString(ticket);
 
-   string url = "https://firestore.googleapis.com/v1/projects/" + FirebaseProjectId + "/databases/" + dbId + "/documents/deals/" + docId;
-   string headers = "Authorization: Bearer " + idToken + "\r\n";
+   string url = "https://firestore.googleapis.com/v1/projects/" + FirebaseProjectId + "/databases/" + dbId + "/documents/deals/" + docId + "?key=" + WebApiKey;
+   string headers = "Content-Type: application/json\r\n";
    
    // Build the Firestore Document JSON format
    string json = "{";
@@ -298,7 +250,10 @@ bool UploadDeal(ulong ticket)
    json += "\"symbol\": {\"stringValue\": \"" + symbol + "\"},";
    json += "\"magic\": {\"integerValue\": \"" + IntegerToString(magic) + "\"},";
    json += "\"isPublic\": {\"booleanValue\": true},";
-   json += "\"ownerId\": {\"stringValue\": \"" + localId + "\"}";
+   
+   long updated_at = (long)TimeCurrent() * 1000;
+   json += "\"updatedAt\": {\"integerValue\": \"" + IntegerToString(updated_at) + "\"}";
+   
    json += "}"; // end fields
    json += "}"; // end doc
 
@@ -368,7 +323,35 @@ void CalcHistoricalDrawdown()
    g_max_drawdown_val = max_dd_val;
    g_max_drawdown_pct = max_dd_pct;
    
-   Print("Hist DD% calculated: ", g_max_drawdown_pct);
+   double total_hold_seconds = 0;
+   int hold_count = 0;
+   CHashMap<long, datetime> pos_in_times;
+   
+   for(int i=0; i<total; i++) {
+      ulong tckt = HistoryDealGetTicket(i);
+      long entry = HistoryDealGetInteger(tckt, DEAL_ENTRY);
+      long pos_id = HistoryDealGetInteger(tckt, DEAL_POSITION_ID);
+      datetime dt = (datetime)HistoryDealGetInteger(tckt, DEAL_TIME);
+      
+      if(entry == DEAL_ENTRY_IN) {
+         datetime existing_time = 0;
+         if(!pos_in_times.TryGetValue(pos_id, existing_time)) {
+            pos_in_times.Add(pos_id, dt);
+         }
+      } else if(entry == DEAL_ENTRY_OUT || entry == DEAL_ENTRY_INOUT || entry == DEAL_ENTRY_OUT_BY) {
+         datetime time_in = 0;
+         if(pos_in_times.TryGetValue(pos_id, time_in)) {
+            if(dt > time_in) {
+               total_hold_seconds += (double)(dt - time_in);
+               hold_count++;
+            }
+         }
+      }
+   }
+   if(hold_count > 0) g_avg_hold_seconds = total_hold_seconds / hold_count;
+   else g_avg_hold_seconds = 0;
+   
+   Print("Hist DD% calculated: ", g_max_drawdown_pct, " AvgHold: ", g_avg_hold_seconds);
   }
 
 //+------------------------------------------------------------------+
@@ -409,16 +392,23 @@ void UploadAccountStats()
    long account = AccountInfoInteger(ACCOUNT_LOGIN);
    string docId = IntegerToString(account) + "_stats";
 
-   string url = "https://firestore.googleapis.com/v1/projects/" + FirebaseProjectId + "/databases/" + dbId + "/documents/accounts/" + docId;
-   string headers = "Authorization: Bearer " + idToken + "\r\n";
+   string url = "https://firestore.googleapis.com/v1/projects/" + FirebaseProjectId + "/databases/" + dbId + "/documents/accounts/" + docId + "?key=" + WebApiKey;
+   string headers = "Content-Type: application/json\r\n";
    
+   string broker = AccountInfoString(ACCOUNT_COMPANY);
+   string server = AccountInfoString(ACCOUNT_SERVER);
+   StringReplace(broker, "\"", "\\\"");
+   StringReplace(server, "\"", "\\\"");
+
    // Build the Firestore Document JSON format
    string json = "{";
    json += "\"fields\": {";
    json += "\"account\": {\"integerValue\": \"" + IntegerToString(account) + "\"},";
    json += "\"maxDrawdown\": {\"doubleValue\": " + DoubleToString(g_max_drawdown_val, 2) + "},";
    json += "\"maxDrawdownPct\": {\"doubleValue\": " + DoubleToString(g_max_drawdown_pct, 4) + "},";
-   json += "\"ownerId\": {\"stringValue\": \"" + localId + "\"}";
+   json += "\"broker\": {\"stringValue\": \"" + broker + "\"},";
+   json += "\"server\": {\"stringValue\": \"" + server + "\"},";
+   json += "\"avgHoldSeconds\": {\"doubleValue\": " + DoubleToString(g_avg_hold_seconds, 0) + "}";
    json += "}"; // end fields
    json += "}"; // end doc
 
