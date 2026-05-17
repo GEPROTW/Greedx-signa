@@ -20,7 +20,7 @@ const TIMEZONE = '+03:00';
 interface Deal {
   account?: number;
   ticket: string;
-  type: number; // 0 = Buy, 1 = Sell
+  type: number | string; // 0 = Buy, 1 = Sell
   volume: number;
   price: number;
   time: number;
@@ -28,6 +28,8 @@ interface Deal {
   commission: number;
   swap: number;
   symbol: string;
+  siteId?: string;
+  isPublic?: boolean;
 }
 
 interface AccountConfig {
@@ -1706,7 +1708,7 @@ export default function App() {
                               return (
                                 <div key={row.id} className="grid grid-cols-[1fr_auto] gap-2 px-4 py-3 items-center hover:bg-ink-3/20 transition-colors relative group">
                                   {/* Left Accent */}
-                                  <div className={`absolute left-0 top-0 bottom-0 w-[3px] transition-opacity ${isWin ? 'bg-green-neon shadow-[0_0_8px_var(--color-green-neon)]' : 'bg-red-neon shadow-[0_0_8px_var(--color-red-neon)]'}`} />
+                                  <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${isWin ? 'bg-green-neon shadow-[0_0_8px_var(--color-green-neon)]' : 'bg-red-neon shadow-[0_0_8px_var(--color-red-neon)]'}`} />
                                   
                                   <div className="flex flex-col min-w-0 pl-1">
                                     <div className="flex items-center gap-0 mb-1.5 flex-nowrap">
@@ -1784,7 +1786,7 @@ export default function App() {
                                     className="border-b border-wire/60 transition-colors hover:bg-[rgba(0,200,224,0.025)] last:border-b-0 relative group"
                                   >
                                     <td className="relative px-5 py-2 text-left border-r border-wire/30">
-                                      <div className={`absolute left-0 top-0 bottom-0 w-[3px] opacity-0 group-hover:opacity-100 transition-opacity ${isWin ? 'bg-green-neon' : 'bg-red-neon'}`} />
+                                      <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${isWin ? 'bg-green-neon shadow-[0_0_8px_var(--color-green-neon)]' : 'bg-red-neon shadow-[0_0_8px_var(--color-red-neon)]'}`} />
                                       <div className="font-display tabular-nums text-[13px] sm:text-[15px] tracking-[0.04em] text-bright max-w-[120px] truncate">{row.period}</div>
                                     </td>
                                     <td className="px-4 py-2 font-mono text-[14px] text-body text-right whitespace-nowrap border-r border-wire/30">
@@ -2055,7 +2057,7 @@ export default function App() {
                       return (
                         <div key={i} className="grid grid-cols-[1fr_auto_auto] gap-2 px-4 py-3 items-center hover:bg-ink-3/20 transition-colors relative group">
                           {/* Left Accent */}
-                          <div className={`absolute left-0 top-0 bottom-0 w-[3px] transition-opacity ${isWin ? 'bg-green-neon shadow-[0_0_8px_var(--color-green-neon)]' : 'bg-red-neon shadow-[0_0_8px_var(--color-red-neon)]'}`} />
+                          <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${isWin ? 'bg-green-neon shadow-[0_0_8px_var(--color-green-neon)]' : 'bg-red-neon shadow-[0_0_8px_var(--color-red-neon)]'}`} />
                           
                           <div className="flex flex-col min-w-0 pl-1">
                             <div className="font-mono text-[14px] text-bright font-medium tabular-nums tracking-tight truncate leading-tight mb-0.5">
@@ -2099,7 +2101,7 @@ export default function App() {
                       {simulationResults.rows.map((row: any, i: number) => (
                         <tr key={i} className="border-b border-wire/40 transition-colors hover:bg-[rgba(50,255,100,0.03)] last:border-b-0 relative group">
                           <td className="px-6 py-3 text-left border-r border-wire/30 font-display tabular-nums text-[15px] tracking-[0.04em] text-bright relative">
-                            <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-green-neon opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${row.pct >= 0 ? 'bg-green-neon shadow-[0_0_8px_var(--color-green-neon)]' : 'bg-red-neon shadow-[0_0_8px_var(--color-red-neon)]'}`} />
                             {row.date}
                           </td>
                           <td className={`px-4 py-3 font-mono text-[15px] text-right whitespace-nowrap border-r border-wire/30 ${row.pct >= 0 ? 'text-green-neon' : 'text-red-neon'}`}>
