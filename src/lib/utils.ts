@@ -26,6 +26,22 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
+export function getSiteId(): string {
+  if (typeof window === 'undefined') return 'appSettings';
+  const host = window.location.hostname;
+  const path = window.location.pathname.replace(/\/$/, '');
+  
+  // Custom domains or GitHub pages with path
+  let id = `${host}${path}`.replace(/[^a-zA-Z0-9]/g, '_');
+  
+  // If it's localhost or an AI Studio preview environment, group them
+  if (host === 'localhost' || host.includes('run.app') || host.includes('webcontainer.io')) {
+    id = 'appSettings_dev';
+  }
+  
+  return id || 'appSettings_default';
+}
+
 export function formatNum(value: number | string, digits: number = 2): string {
   const num = Number(value);
   if (isNaN(num)) return (0).toFixed(digits);

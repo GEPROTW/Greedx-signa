@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { collection, query, where, getDocs, doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { db, auth } from './firebase';
-import { handleFirestoreError, OperationType, formatNum } from './lib/utils';
+import { handleFirestoreError, OperationType, formatNum, getSiteId } from './lib/utils';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, 
   AreaChart, Area, CartesianGrid, Cell
@@ -416,15 +416,16 @@ export default function App() {
 // Removed auth listener for temporary public access overrides
 
   useEffect(() => {
+    const siteId = getSiteId();
     const unsubSettings = onSnapshot(
-      doc(db, 'settings', 'appSettings'),
+      doc(db, 'settings', siteId),
       (docSnap) => {
         if (docSnap.exists()) {
           setSettings(docSnap.data() as AppSettings);
         }
       },
       (err) => {
-        handleFirestoreError(err, OperationType.GET, 'settings/appSettings');
+        handleFirestoreError(err, OperationType.GET, `settings/${siteId}`);
       }
     );
     return () => unsubSettings();
@@ -460,10 +461,11 @@ export default function App() {
 
   const handleSaveSettings = async () => {
     try {
-      await setDoc(doc(db, 'settings', 'appSettings'), tempSettings, { merge: true });
+      const siteId = getSiteId();
+      await setDoc(doc(db, 'settings', siteId), tempSettings, { merge: true });
       setShowSettingsModal(false);
     } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, 'settings/appSettings');
+      handleFirestoreError(err, OperationType.WRITE, `settings/${getSiteId()}`);
     }
   };
 
