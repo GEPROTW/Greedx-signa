@@ -1712,7 +1712,7 @@ export default function App() {
                                   
                                   <div className="flex flex-col min-w-0 pl-1">
                                     <div className="flex items-center gap-0 mb-1.5 flex-nowrap">
-                                      <span className="font-mono text-[14px] text-bright font-medium tabular-nums tracking-tight truncate leading-tight min-w-[115px] w-[115px] shrink-0">{row.periodMobile}</span>
+                                      <span className="font-mono text-[14px] text-bright font-medium tabular-nums tracking-tight leading-tight min-w-[125px] shrink-0">{row.periodMobile}</span>
                                       {!row.isSingle && (
                                         <span className="font-mono text-[10px] text-dim bg-ink-4/50 px-1.5 py-[1px] rounded border border-wire/40 shrink-0">
                                           {t('trades')} {row.trades}
@@ -1787,7 +1787,7 @@ export default function App() {
                                   >
                                     <td className="relative px-5 py-2 text-left border-r border-wire/30">
                                       <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${isWin ? 'bg-green-neon shadow-[0_0_8px_var(--color-green-neon)]' : 'bg-red-neon shadow-[0_0_8px_var(--color-red-neon)]'}`} />
-                                      <div className="font-display tabular-nums text-[13px] sm:text-[15px] tracking-[0.04em] text-bright max-w-[120px] truncate">{row.period}</div>
+                                      <div className="font-mono tabular-nums text-[13px] sm:text-[14px] tracking-tight text-bright whitespace-nowrap">{row.period}</div>
                                     </td>
                                     <td className="px-4 py-2 font-mono text-[14px] text-body text-right whitespace-nowrap border-r border-wire/30">
                                       {row.trades}
