@@ -48,6 +48,8 @@ interface AppSettings {
     tutorial?: string;
     contact?: string;
   };
+  adminUsername?: string;
+  adminPassword?: string;
 }
 
 type Timeframe = 'DAY' | 'WEEK' | 'MONTH' | 'QUARTER' | 'YEAR';
@@ -350,6 +352,11 @@ export default function App() {
   const [user, setUser] = useState<any>(null); // Kept state variable signature for code consistency
   const [settings, setSettings] = useState<AppSettings>({ title: '', logoUrl: '' });
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [loginUser, setLoginUser] = useState('');
+  const [loginPass, setLoginPass] = useState('');
+  const [loginError, setLoginError] = useState('');
   const [tempSettings, setTempSettings] = useState<AppSettings>({ title: '', logoUrl: '' });
   const [accountStatsMap, setAccountStatsMap] = useState<Record<string, { maxDrawdownPct: number, maxDrawdownVal: number, broker?: string, server?: string, avgHoldSeconds?: number }>>({});
   const [selectedAccount, setSelectedAccount] = useState<string>('');
@@ -457,7 +464,7 @@ export default function App() {
   }, [SITE_ID]);
 
   useEffect(() => {
-    // Open query for all accounts since we removed login constraint
+    // Fetch all accounts but filter/process based on SITE_ID if data is tagged
     const q = collection(db, 'accounts');
     const unsubAccounts = onSnapshot(
       q,
@@ -466,13 +473,17 @@ export default function App() {
         snapshot.forEach(docSnap => {
           const data = docSnap.data();
           if (data && data.account) {
-            stats[data.account.toString()] = {
-              maxDrawdownPct: data.maxDrawdownPct || 0,
-              maxDrawdownVal: data.maxDrawdown || 0,
-              broker: data.broker,
-              server: data.server,
-              avgHoldSeconds: data.avgHoldSeconds
-            };
+            // If the account doc has a siteId, it must match current SITE_ID.
+            // If it doesn't have a siteId, we allow it (global/legacy).
+            if (!data.siteId || data.siteId === SITE_ID) {
+              stats[data.account.toString()] = {
+                maxDrawdownPct: data.maxDrawdownPct || 0,
+                maxDrawdownVal: data.maxDrawdown || 0,
+                broker: data.broker,
+                server: data.server,
+                avgHoldSeconds: data.avgHoldSeconds
+              };
+            }
           }
         });
         setAccountStatsMap(stats);
@@ -482,7 +493,7 @@ export default function App() {
       }
     );
     return () => unsubAccounts();
-  }, []);
+  }, [SITE_ID]);
 
   const handleSaveSettings = async () => {
     try {
@@ -493,19 +504,87 @@ export default function App() {
     }
   };
 
+  const prepareSettings = () => {
+    const detectedAccounts = new Set(deals.filter(d => d.account != null).map(d => d.account!.toString()));
+    let initialAccounts: Record<string, AccountConfig> = { ...settings.accounts };
+    let orderCounter = Object.keys(initialAccounts).length;
+    detectedAccounts.forEach((accStr: string) => {
+      if (!initialAccounts[accStr]) {
+        initialAccounts[accStr] = {
+          account: parseInt(accStr, 10),
+          label: accStr,
+          isHidden: false,
+          order: orderCounter++
+        };
+      }
+    });
+    return { 
+      title: settings.title || '', 
+      logoUrl: settings.logoUrl || '', 
+      accounts: initialAccounts, 
+      links: settings.links || {},
+      adminUsername: settings.adminUsername || '',
+      adminPassword: settings.adminPassword || ''
+    };
+  };
+
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const targetUser = settings.adminUsername || 'admin';
+    const targetPass = settings.adminPassword || 'admin';
+
+    if (loginUser === targetUser && loginPass === targetPass) {
+      setIsAdminLoggedIn(true);
+      setShowLoginModal(false);
+      setTempSettings(prepareSettings());
+      setShowSettingsModal(true);
+      setLoginError('');
+      setLoginUser('');
+      setLoginPass('');
+    } else {
+      setLoginError(t('loginFailed'));
+    }
+  };
+
+  const handleOpenSettings = () => {
+    if (isAdminLoggedIn) {
+      setTempSettings(prepareSettings());
+      setShowSettingsModal(true);
+    } else {
+      setShowLoginModal(true);
+    }
+  };
+
   const fetchDeals = async () => {
     setLoading(true);
     try {
+      // Basic public query
       const dealsQuery = query(
         collection(db, 'deals'),
-        where('siteId', '==', SITE_ID),
         where('isPublic', '==', true)
       );
       
       const querySnapshot = await getDocs(dealsQuery);
       let fetchedDeals: Deal[] = [];
-      querySnapshot.forEach((doc) => {
-        fetchedDeals.push(doc.data() as Deal);
+      
+      // Get list of accounts for this site from settings to filter untagged deals
+      const siteAccounts = settings.accounts ? Object.keys(settings.accounts).map(String) : [];
+
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data() as Deal;
+        const dealAccount = data.account?.toString();
+        
+        // Logical filter for "Independence":
+        // 1. If deal is specifically tagged with SITE_ID, it belongs here.
+        // 2. If deal has NO siteId, check if its account is listed in this site's settings.
+        // 3. Fallback: If site has NO accounts configured yet, show all untagged data (backwards compatibility).
+        const isTargeted = data.siteId === SITE_ID;
+        const isMatchingAccount = dealAccount && siteAccounts.includes(dealAccount);
+        const isLegacyGlobal = !data.siteId && siteAccounts.length === 0;
+
+        if (isTargeted || isMatchingAccount || isLegacyGlobal) {
+          fetchedDeals.push(data);
+        }
       });
 
       fetchedDeals.sort((a, b) => a.time - b.time);
@@ -520,7 +599,7 @@ export default function App() {
 
   useEffect(() => {
     fetchDeals();
-  }, [SITE_ID]);
+  }, [SITE_ID, settings.accounts]); // Re-fetch if site or its configured accounts change
 
   const dealsWithBalance = useMemo(() => {
     let currentBal = 0;
@@ -1202,23 +1281,7 @@ export default function App() {
             </div>
             <div className="flex items-center justify-start md:justify-end gap-1.5 font-mono text-[9px] md:text-[11px] tracking-[0.12em] text-muted uppercase opacity-70">
               <span 
-                onClick={() => {
-                  const detectedAccounts = new Set(deals.filter(d => d.account != null).map(d => d.account!.toString()));
-                  let initialAccounts: Record<string, AccountConfig> = { ...settings.accounts };
-                  let orderCounter = Object.keys(initialAccounts).length;
-                  detectedAccounts.forEach((accStr: string) => {
-                    if (!initialAccounts[accStr]) {
-                      initialAccounts[accStr] = {
-                        account: parseInt(accStr, 10),
-                        label: accStr,
-                        isHidden: false,
-                        order: orderCounter++
-                      };
-                    }
-                  });
-                  setTempSettings({ title: settings.title || '', logoUrl: settings.logoUrl || '', accounts: initialAccounts, links: settings.links || {} });
-                  setShowSettingsModal(true);
-                }}
+                onClick={handleOpenSettings}
                 className={`w-1.5 h-1.5 rounded-full cursor-pointer hover:scale-150 transition-transform shadow-[0_0_6px_var(--color-green-neon)] ${loading ? 'bg-gold animate-pulse shadow-[0_0_6px_var(--color-gold)]' : 'bg-green-neon'}`} 
               />
               {loading ? t('loading') : lastSync ? `${t('lastSync')}: ${formatInTimeZone(lastSync, TIMEZONE, 'HH:mm:ss')}` : t('monitoring')}
@@ -2077,7 +2140,60 @@ export default function App() {
           </div>
         </footer>
 
-        {/* LOGIN MODAL REMOVED FOR TEMPORARY PUBLIC ACCESS */}
+        {/* LOGIN MODAL */}
+        {showLoginModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-ink-2 border border-wire rounded-2xl shadow-2xl w-full max-w-[400px] p-6 sm:p-8"
+            >
+              <h2 className="font-display text-xl text-bright mb-6 tracking-wider text-center uppercase">{t('adminLogin')}</h2>
+              <form onSubmit={handleAdminLogin} className="space-y-4">
+                <div>
+                  <label className="block font-mono text-[11px] tracking-[0.1em] text-muted mb-2 uppercase">{t('account')}</label>
+                  <input 
+                    type="text"
+                    value={loginUser}
+                    onChange={(e) => setLoginUser(e.target.value)}
+                    className="w-full bg-ink-4/50 border border-wire rounded-xl px-4 py-3 font-sans text-[14px] text-bright focus:outline-none focus:border-cyan-glow/50 focus:bg-ink-3 transition-colors"
+                    placeholder="admin"
+                  />
+                </div>
+                <div>
+                  <label className="block font-mono text-[11px] tracking-[0.1em] text-muted mb-2 uppercase">密碼 (Password)</label>
+                  <input 
+                    type="password"
+                    value={loginPass}
+                    onChange={(e) => setLoginPass(e.target.value)}
+                    className="w-full bg-ink-4/50 border border-wire rounded-xl px-4 py-3 font-sans text-[14px] text-bright focus:outline-none focus:border-cyan-glow/50 focus:bg-ink-3 transition-colors"
+                    placeholder="••••••••"
+                  />
+                </div>
+                {loginError && (
+                  <div className="text-red-neon text-[12px] font-mono text-center py-2 bg-red-neon/5 rounded-lg border border-red-neon/10">
+                    {loginError}
+                  </div>
+                )}
+                <div className="flex gap-3 pt-4">
+                  <button 
+                    type="button"
+                    onClick={() => setShowLoginModal(false)}
+                    className="flex-1 px-4 py-3 bg-transparent border border-wire text-dim hover:text-bright rounded-xl font-mono text-[13px] uppercase transition-all"
+                  >
+                    {t('cancel')}
+                  </button>
+                  <button 
+                    type="submit"
+                    className="flex-1 px-4 py-3 bg-cyan-glow text-white rounded-xl font-mono text-[13px] font-bold uppercase hover:opacity-90 transition-all shadow-lg shadow-cyan-glow/20"
+                  >
+                    {t('login')}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
 
         {/* SETTINGS MODAL */}
         {showSettingsModal && (
@@ -2151,7 +2267,31 @@ export default function App() {
                     className="w-full bg-ink-3 border border-wire rounded-lg px-3 py-2 font-mono text-[14px] text-body focus:outline-none focus:ring-2 focus:ring-cyan-glow/30"
                   />
                 </div>
-                <div className="flex flex-col gap-3">
+                  <div className="grid grid-cols-2 gap-4 border-t border-wire pt-6 mt-2">
+                    <div className="col-span-2 text-[11px] font-mono text-dim tracking-wider uppercase mb-1">管理權限 (Admin Credentials)</div>
+                    <div>
+                      <label className="block font-mono text-[12px] tracking-[0.1em] text-muted mb-2">帳號 (Username)</label>
+                      <input 
+                        type="text" 
+                        value={tempSettings.adminUsername || ''}
+                        onChange={(e) => setTempSettings({...tempSettings, adminUsername: e.target.value})}
+                        placeholder="admin"
+                        className="w-full bg-ink-3 border border-wire rounded-lg px-3 py-2 font-mono text-[14px] text-body focus:outline-none focus:ring-2 focus:ring-cyan-glow/30"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-mono text-[12px] tracking-[0.1em] text-muted mb-2">密碼 (Password)</label>
+                      <input 
+                        type="text" 
+                        value={tempSettings.adminPassword || ''}
+                        onChange={(e) => setTempSettings({...tempSettings, adminPassword: e.target.value})}
+                        placeholder="admin"
+                        className="w-full bg-ink-3 border border-wire rounded-lg px-3 py-2 font-mono text-[14px] text-body focus:outline-none focus:ring-2 focus:ring-cyan-glow/30"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col gap-3">
                   {tempSettings.accounts && (Object.values(tempSettings.accounts) as AccountConfig[]).sort((a,b) => a.order - b.order).map((acc, index) => (
                     <div key={acc.account} className="border border-wire p-3 bg-ink-3">
                       <div className="flex justify-between items-center mb-2">
@@ -2219,19 +2359,31 @@ export default function App() {
                   )}
                 </div>
               </div>
-              <div className="flex gap-3 justify-end mt-4 pt-4 border-t border-wire shrink-0">
+              <div className="flex gap-3 justify-between mt-4 pt-4 border-t border-wire shrink-0">
                 <button 
-                  onClick={() => setShowSettingsModal(false)}
-                  className="px-6 py-2 bg-transparent border border-wire text-dim hover:text-bright rounded-lg font-mono text-[14px]"
+                  onClick={() => {
+                    setIsAdminLoggedIn(false);
+                    setShowSettingsModal(false);
+                  }}
+                  className="px-4 py-2 bg-red-neon/10 border border-red-neon/30 text-red-neon rounded-lg font-mono text-[12px] hover:bg-red-neon/20 transition-all flex items-center gap-2"
                 >
-                  {t('cancel')}
+                  <ShieldAlert className="w-4 h-4 ml-[-2px]" />
+                  {t('logout')}
                 </button>
-                <button 
-                  onClick={handleSaveSettings}
-                  className="px-6 py-2 bg-cyan-glow text-white rounded-lg font-mono text-[14px] hover:opacity-90 transition-opacity"
-                >
-                  {t('saveSettings')}
-                </button>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setShowSettingsModal(false)}
+                    className="px-6 py-2 bg-transparent border border-wire text-dim hover:text-bright rounded-lg font-mono text-[14px]"
+                  >
+                    {t('cancel')}
+                  </button>
+                  <button 
+                    onClick={handleSaveSettings}
+                    className="px-6 py-2 bg-cyan-glow text-white rounded-lg font-mono text-[14px] hover:opacity-90 transition-all"
+                  >
+                    {t('saveSettings')}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
