@@ -506,68 +506,6 @@ export default function App() {
 
   const tradeDeals = useMemo(() => dealsWithBalance.filter(d => d.type === 0 || d.type === 1 || d.type === '0' || d.type === '1'), [dealsWithBalance]);
 
-  const enrichedTradeDeals = useMemo(() => {
-    const inventory: Record<string, { type: number, volume: number, time: number }[]> = {};
-    const result: (Deal & { openTime?: number, durationString?: string, net: number })[] = [];
-
-    // process chronologically 
-    for (const deal of tradeDeals) {
-      const symbol = deal.symbol;
-      const currentType = (deal.type === 0 || deal.type === '0') ? 0 : 1;
-      // MT5: Buy=0, Sell=1. To close a Buy, we Sell.
-      const oppType = currentType === 0 ? 1 : 0;
-      
-      let remainingVol = Number(deal.volume);
-      let firstOpenTime: number | undefined = undefined;
-
-      if (!inventory[symbol]) inventory[symbol] = [];
-      const inv = inventory[symbol];
-      
-      // Match opposite type inventory (FIFO)
-      while (remainingVol > 0.00001 && inv.length > 0 && inv[0].type === oppType) {
-        if (firstOpenTime === undefined) {
-          firstOpenTime = inv[0].time;
-        }
-        
-        if (inv[0].volume <= remainingVol + 0.00001) {
-          remainingVol -= inv[0].volume;
-          inv.shift();
-        } else {
-          inv[0].volume -= remainingVol;
-          remainingVol = 0;
-        }
-      }
-      
-      // If there is still volume left, it's (partly or fully) an IN deal
-      if (remainingVol > 0.00001) {
-        inv.push({
-          type: currentType,
-          volume: remainingVol,
-          time: deal.time
-        });
-      }
-
-      let durationString = '';
-      if (firstOpenTime !== undefined) {
-        const diffS = Math.floor((deal.time - firstOpenTime) / 1000);
-        const m = Math.floor(diffS / 60);
-        const h = Math.floor(m / 60);
-        const d = Math.floor(h / 24);
-        if (d > 0) durationString = `${d}d ${h % 24}h`;
-        else if (h > 0) durationString = `${h}h ${m % 60}m`;
-        else durationString = `${m}m`;
-      }
-
-      result.push({
-        ...deal,
-        openTime: firstOpenTime,
-        durationString,
-        net: (deal as any).net ?? (deal.profit + deal.commission + deal.swap)
-      });
-    }
-    return result;
-  }, [tradeDeals]);
-
   const aggregatedTableData = useMemo(() => {
     const map = new Map<string, any>();
 
@@ -1046,7 +984,7 @@ export default function App() {
                   <button
                     onClick={() => setIsAccountDropdownOpen(p => !p)}
                     onBlur={() => setTimeout(() => setIsAccountDropdownOpen(false), 200)}
-                    className={`flex items-center justify-between transition-all duration-300 appearance-none bg-ink-2/80 backdrop-blur-md border ${isAccountDropdownOpen ? 'border-cyan-glow/50 ring-2 ring-cyan-glow/20' : 'border-wire/80 hover:border-dim/50'} text-bright text-[12px] sm:text-[13px] rounded-lg font-sans tracking-wide pl-1.5 pr-3 h-10 focus:outline-none cursor-pointer min-w-[200px] sm:min-w-[240px] max-w-[280px] shadow-sm`}
+                    className={`flex items-center justify-between transition-all duration-300 appearance-none bg-ink-2/80 backdrop-blur-md border ${isAccountDropdownOpen ? 'border-cyan-glow/50 ring-2 ring-cyan-glow/20' : 'border-wire/80 hover:border-dim/50'} text-bright text-[12px] sm:text-[13px] rounded-lg font-sans tracking-wide p-1.5 pr-2 focus:outline-none cursor-pointer min-w-[200px] sm:min-w-[240px] max-w-[280px] shadow-sm`}
                   >
                     <div className="flex items-center gap-2.5 truncate">
                       <AnimatePresence mode="popLayout">
@@ -1115,12 +1053,12 @@ export default function App() {
                                   <img 
                                     src={parseImageUrl(acc.logoUrl)} 
                                     alt="Account Logo" 
-                                    className={`w-7 h-7 rounded-md object-cover shadow-sm bg-ink-3 shrink-0 transition-all ${selectedAccount === acc.account.toString() ? 'border shadow-[0_0_8px_var(--color-cyan-glow)] border-cyan-glow/50' : 'opacity-80 group-hover:opacity-100 border border-wire/30'}`} 
+                                    className={`w-6 h-6 rounded object-cover shadow-sm bg-ink-3 shrink-0 transition-all ${selectedAccount === acc.account.toString() ? 'border shadow-[0_0_8px_var(--color-cyan-glow)] border-cyan-glow/50' : 'opacity-80 group-hover:opacity-100 border border-wire/30'}`} 
                                     referrerPolicy="no-referrer"
                                   />
                                 ) : (
-                                  <div className={`w-7 h-7 rounded-md shadow-sm bg-ink-2 shrink-0 flex items-center justify-center transition-all ${selectedAccount === acc.account.toString() ? 'border shadow-[0_0_8px_var(--color-cyan-glow)] border-cyan-glow/50' : 'opacity-80 group-hover:opacity-100 border border-wire/30'}`}>
-                                    <span className={`font-mono text-[10px] ${selectedAccount === acc.account.toString() ? 'text-cyan-glow' : 'text-dim'}`}>{acc.label?.charAt(0) || acc.account.toString().charAt(0)}</span>
+                                  <div className={`w-6 h-6 rounded shadow-sm bg-ink-2 shrink-0 flex items-center justify-center transition-all ${selectedAccount === acc.account.toString() ? 'border shadow-[0_0_8px_var(--color-cyan-glow)] border-cyan-glow/50' : 'opacity-80 group-hover:opacity-100 border border-wire/30'}`}>
+                                    <span className={`font-mono text-[9px] ${selectedAccount === acc.account.toString() ? 'text-cyan-glow' : 'text-dim'}`}>{acc.label?.charAt(0) || acc.account.toString().charAt(0)}</span>
                                   </div>
                                 )}
                                 <span className="truncate">{acc.label || acc.account.toString()}</span>
@@ -1139,7 +1077,7 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
-                  className="w-10 h-10 flex flex-col items-center justify-center rounded-lg border border-wire bg-ink-2 text-dim hover:text-bright transition-colors overflow-hidden"
+                  className="w-8 h-8 flex flex-col items-center justify-center rounded-lg border border-wire bg-ink-2 text-dim hover:text-bright transition-colors overflow-hidden"
                   title={t('toggleTheme')}
                 >
                   <AnimatePresence mode="wait">
@@ -1150,13 +1088,13 @@ export default function App() {
                       exit={{ opacity: 0, scale: 0.5, rotate: 45 }}
                       transition={{ duration: 0.2, ease: 'easeOut' }}
                     >
-                      {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+                      {theme === 'light' ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
                     </motion.div>
                   </AnimatePresence>
                 </button>
                 <button
                   onClick={() => setLang(prev => prev === 'zh' ? 'en' : 'zh')}
-                  className="w-10 h-10 flex flex-col items-center justify-center rounded-lg border border-wire bg-ink-2 text-dim hover:text-bright transition-colors font-mono text-[11px] font-bold overflow-hidden"
+                  className="w-8 h-8 flex flex-col items-center justify-center rounded-lg border border-wire bg-ink-2 text-dim hover:text-bright transition-colors font-mono text-[10px] font-bold overflow-hidden"
                   title={t('toggleLanguage')}
                 >
                   <AnimatePresence mode="wait">
@@ -1399,16 +1337,16 @@ export default function App() {
             </div>
 
             {/* CHARTS GRID TOP */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
-              <div className="bg-ink-2 border border-wire rounded-xl shadow-sm p-5 lg:p-6 relative overflow-hidden flex flex-col h-[340px]">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mt-4">
+              <div className="lg:col-span-2 bg-ink-2 border border-wire rounded-xl shadow-sm p-5 lg:p-6 relative overflow-hidden flex flex-col h-[340px]">
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(0,200,224,0.04),transparent)] pointer-events-none" />
                 <div className="flex justify-between items-start border-b border-wire/40 pb-4 mb-4 relative z-10 shrink-0">
                   <div className="flex items-center gap-3">
                     <LineChart className="w-4 h-4 text-green-400" />
-                    <span className="font-mono tracking-[0.05em] text-bright font-medium text-[14px]">{t('equityCurve')}</span>
+                    <span className="font-display tracking-[0.05em] text-bright font-medium text-[14px]">{t('equityCurve')}</span>
                   </div>
                   <div className="text-right">
-                    <div className={`font-mono tabular-nums text-[24px] tracking-[0.02em] ${stats.totalProfit >= 0 ? 'text-green-neon' : 'text-red-neon'}`}>
+                    <div className={`font-display tabular-nums text-[24px] tracking-[0.02em] ${stats.totalProfit >= 0 ? 'text-green-neon' : 'text-red-neon'}`}>
                       ${formatNum(stats.totalProfit)}
                     </div>
                     <div className="font-mono text-[12px] text-dim mt-0.5 text-right">{t('totalPL')}</div>
@@ -1441,7 +1379,7 @@ export default function App() {
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(0,200,224,0.04),transparent)] pointer-events-none" />
                 <div className="flex items-center gap-3 border-b border-wire/40 pb-4 mb-4 relative z-10 shrink-0">
                   <Activity className="w-4 h-4 text-cyan-400" />
-                  <span className="font-mono tracking-[0.05em] text-bright font-medium text-[14px]">{chartTitle}</span>
+                  <span className="font-display tracking-[0.05em] text-bright font-medium text-[14px]">{chartTitle}</span>
                 </div>
                 <div className="flex-1 w-full relative z-10 min-h-0">
                   <ResponsiveContainer width="100%" height="100%">
@@ -1482,7 +1420,7 @@ export default function App() {
                 <div className="flex flex-wrap gap-3 items-center justify-between border-b border-wire/40 pb-4 mb-4 relative z-10 shrink-0">
                   <div className="flex items-center gap-3">
                     <Zap className="w-4 h-4 text-orange-400" />
-                    <span className="font-mono tracking-[0.05em] text-bright font-medium text-[14px]">{t('recentTrades')}</span>
+                    <span className="font-display tracking-[0.05em] text-bright font-medium text-[14px]">{t('recentTrades')}</span>
                   </div>
                   <div className="px-3 py-1 bg-cyan-glow/10 border border-cyan-glow/20 rounded-full font-mono text-[11px] text-cyan-glow">
                     {t('latest10')}
@@ -1494,34 +1432,25 @@ export default function App() {
                       {t('noTradeRecord')}
                     </div>
                   )}
-                  {[...enrichedTradeDeals].filter(d => d.openTime !== undefined).reverse().slice(0, 10).map((deal, i) => {
-                    const net = deal.net ?? (deal.profit + deal.commission + deal.swap);
+                  {[...tradeDeals].reverse().slice(0, 10).map((deal, i) => {
+                    const net = deal.profit + deal.commission + deal.swap;
                     const isWin = net >= 0;
                     return (
-                      <div key={i} className="flex justify-between items-center py-2.5 px-4 relative hover:bg-ink-3 border-b border-wire/20 transition-colors group shrink-0">
-                        <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${isWin ? 'bg-green-neon shadow-[0_0_8px_var(--color-green-neon)]' : 'bg-red-neon shadow-[0_0_8px_var(--color-red-neon)]'}`} />
-                        <div className="flex flex-col gap-0.5 pl-1">
-                          <div className="flex items-baseline gap-2">
-                            <span className="font-mono text-[13px] text-bright font-bold">
-                              {deal.type === 0 || deal.type === '0' ? 'Buy' : 'Sell'} {deal.volume}
-                            </span>
-                            <span className="flex items-center gap-1.5 font-mono text-[11px] text-muted">
-                              <span>#{deal.ticket}</span>
-                              <span>{deal.symbol}</span>
-                            </span>
+                      <div key={i} className="flex flex-col px-5 lg:px-6 py-4 relative hover:bg-[rgba(0,200,224,0.02)] transition-colors group shrink-0">
+                        <div className={`absolute left-0 top-3 bottom-3 w-1 rounded-r-full transition-opacity ${isWin ? 'bg-green-neon' : 'bg-red-neon'}`} />
+                        <div className="flex justify-between items-start mb-2 pl-2">
+                          <div className="font-mono text-[14px] text-bright font-bold">
+                            {deal.type === 0 || deal.type === '0' ? 'Buy' : 'Sell'} {deal.volume} {t('volume')}
                           </div>
-                          <div className="flex flex-wrap items-center gap-1.5 font-mono text-[10px] text-dim whitespace-nowrap opacity-80">
-                            <span>{deal.openTime ? formatInTimeZone(deal.openTime, TIMEZONE, 'MM-dd HH:mm') : ''} → {formatInTimeZone(deal.time, TIMEZONE, 'MM-dd HH:mm')}</span>
-                            {deal.durationString && (
-                              <>
-                                <span>·</span>
-                                <span>{deal.durationString}</span>
-                              </>
-                            )}
+                          <div className={`font-mono text-[15px] font-bold tracking-tight ${isWin ? 'text-green-neon' : 'text-red-neon'}`}>
+                            {isWin ? '+' : ''}{formatNum(net)}
                           </div>
                         </div>
-                        <div className={`font-mono text-[14px] font-bold tracking-tight text-right shrink-0 ml-4 ${isWin ? 'text-green-neon' : 'text-red-neon'}`}>
-                          {isWin ? '+' : ''}{formatNum(net)}
+                        <div className="flex items-center gap-2 pl-2 font-mono text-[11px] text-dim whitespace-nowrap overflow-hidden text-ellipsis opacity-80">
+                          <span className="text-muted">#{deal.ticket}</span>
+                          <span>{formatInTimeZone(deal.time, TIMEZONE, 'yyyy-MM-dd HH:mm')}</span>
+                          <span>·</span>
+                          <span className="text-muted">{deal.symbol}</span>
                         </div>
                       </div>
                     );
@@ -1616,7 +1545,7 @@ export default function App() {
                               return (
                                 <div key={row.id} className="grid grid-cols-[1fr_auto] gap-2 px-4 py-3 items-center hover:bg-ink-3/20 transition-colors relative group">
                                   {/* Left Accent */}
-                                  <div className={`absolute left-0 top-0 bottom-0 w-[3px] transition-opacity ${isWin ? 'bg-green-neon shadow-[0_0_8px_var(--color-green-neon)]' : 'bg-red-neon shadow-[0_0_8px_var(--color-red-neon)]'}`} />
+                                  <div className={`absolute left-0 top-1 bottom-1 w-1 rounded-r-full transition-opacity ${isWin ? 'bg-green-neon shadow-[0_0_8px_var(--color-green-neon)]' : 'bg-red-neon shadow-[0_0_8px_var(--color-red-neon)]'}`} />
                                   
                                   <div className="flex flex-col min-w-0 pl-1">
                                     <div className="flex items-center gap-0 mb-1.5 flex-nowrap">
@@ -1965,7 +1894,7 @@ export default function App() {
                       return (
                         <div key={i} className="grid grid-cols-[1fr_auto_auto] gap-2 px-4 py-3 items-center hover:bg-ink-3/20 transition-colors relative group">
                           {/* Left Accent */}
-                          <div className={`absolute left-0 top-0 bottom-0 w-[3px] transition-opacity ${isWin ? 'bg-green-neon shadow-[0_0_8px_var(--color-green-neon)]' : 'bg-red-neon shadow-[0_0_8px_var(--color-red-neon)]'}`} />
+                          <div className={`absolute left-0 top-1 bottom-1 w-1 rounded-r-full transition-opacity ${isWin ? 'bg-green-neon shadow-[0_0_8px_var(--color-green-neon)]' : 'bg-red-neon shadow-[0_0_8px_var(--color-red-neon)]'}`} />
                           
                           <div className="flex flex-col min-w-0 pl-1">
                             <div className="font-mono text-[14px] text-bright font-medium tabular-nums tracking-tight truncate leading-tight mb-0.5">
